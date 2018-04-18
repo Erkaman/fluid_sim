@@ -208,8 +208,10 @@ GLuint bsTexLocation;
 GLuint visShader;
 GLuint vsTexLocation;
 
-GLuint frameFbo;
-GLuint frameColorTexture;
+GLuint fbo0;
+GLuint fbo1;
+
+GLuint uTex;
 
 void error_callback(int error, const char* description)
 {
@@ -280,7 +282,13 @@ void renderFrame() {
 
 	GL_C(glViewport(0, 0, frameW, frameH));
 	
-	GL_C(glBindFramebuffer(GL_FRAMEBUFFER, frameFbo));
+
+	GL_C(glBindFramebuffer(GL_FRAMEBUFFER, fbo0));
+	GL_C(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, uTex, 0));
+	GL_C(glBindFramebuffer(GL_FRAMEBUFFER, 0));
+
+
+	GL_C(glBindFramebuffer(GL_FRAMEBUFFER, fbo0));
 	{
 
 		GL_C(glClearColor(0.0f, 0.0f, 0.0f, 0.0f));
@@ -293,7 +301,6 @@ void renderFrame() {
 	GL_C(glBindFramebuffer(GL_FRAMEBUFFER, 0));
 	
 	{
-
 		GL_C(glClearColor(0.0f, 0.0f, 0.0f, 0.0f));
 		GL_C(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
 
@@ -301,7 +308,7 @@ void renderFrame() {
 
 		GL_C(glUniform1i(vsTexLocation, 0));
 		GL_C(glActiveTexture(GL_TEXTURE0 + 0));
-		GL_C(glBindTexture(GL_TEXTURE_2D, frameColorTexture));
+		GL_C(glBindTexture(GL_TEXTURE_2D, uTex));
 
 		RenderFullscreen();
 	}
@@ -326,6 +333,23 @@ void checkFbo() {
 	}
 }
 
+GLuint createFloatTexture() {
+	GLuint tex;
+
+	GL_C(glGenTextures(1, &tex));
+	GL_C(glBindTexture(GL_TEXTURE_2D, tex));
+	GL_C(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, frameW, frameH, 0, GL_RGBA, GL_FLOAT, nullptr));
+	GL_C(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR));
+	GL_C(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR));
+
+	GL_C(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
+	GL_C(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
+
+	GL_C(glBindTexture(GL_TEXTURE_2D, 0));
+
+	return tex;
+}
+
 void setupGraphics(int w, int h) {
 
 #ifdef WIN32
@@ -341,29 +365,12 @@ void setupGraphics(int w, int h) {
 	// frameFbo
 	{
 		{
-			GL_C(glGenTextures(1, &frameColorTexture));
-			GL_C(glBindTexture(GL_TEXTURE_2D, frameColorTexture));
-			GL_C(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, frameW, frameH, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr));
-			GL_C(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST));
-			GL_C(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
-
-			GL_C(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
-			GL_C(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
-
-			GL_C(glBindTexture(GL_TEXTURE_2D, 0));
+			uTex = createFloatTexture();
 		}
 
-
 		{
-
-			GL_C(glGenFramebuffers(1, &frameFbo));
-			GL_C(glBindFramebuffer(GL_FRAMEBUFFER, frameFbo));
-
-			GL_C(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, frameColorTexture, 0));
-
-			checkFbo();
-
-			GL_C(glBindFramebuffer(GL_FRAMEBUFFER, 0));
+			GL_C(glGenFramebuffers(1, &fbo0));
+			GL_C(glGenFramebuffers(1, &fbo1));
 		}
 	}
 
@@ -411,7 +418,6 @@ void setupGraphics(int w, int h) {
 		)")
 	);
 	bsTexLocation = glGetUniformLocation(blitShader, "uColorTex");
-
 	
 	visShader = LoadNormalShader(
 		
