@@ -19,17 +19,8 @@
 
 GLFWwindow* window;
 
-PFNGLGENQUERIESPROC glGenQueriesEXT;
-
-PFNGLENDQUERYPROC glEndQueryEXT;
-PFNGLBEGINQUERYPROC glBeginQueryEXT;
-PFNGLGETQUERYOBJECTUIVPROC glGetQueryObjectuivEXT;
-
 #define  LOGI(...)  printf(__VA_ARGS__)
 #define  LOGE(...)  printf(__VA_ARGS__)
-
-
-std::chrono::time_point<std::chrono::system_clock>  m_frameStartTime;
 
 
 inline void CheckOpenGLError(const char* stmt, const char* fname, int line)
@@ -204,12 +195,10 @@ int FRAME_RATE = 30;
 int fbWidth, fbHeight;
 
 int frameW, frameH;
-int downsampleW, downsampleH;
 
 struct FullscreenVertex {
 	float x, y; // position
 };
-
 
 GLuint fullscreenVertexVbo;
 
@@ -218,7 +207,6 @@ GLuint bsTexLocation;
 
 GLuint visShader;
 GLuint vsTexLocation;
-
 
 GLuint frameFbo;
 GLuint frameColorTexture;
@@ -260,101 +248,6 @@ void InitGlfw() {
 }
 #endif
 
-static const int BUFFER_SIZE = 4;
-static GLuint queries[BUFFER_SIZE];
-static int query_buffer_next_index;
-static int query_buffer_n;
-static float elapsed_time_seconds = NAN;
-
-static void InitRenderTiming() {
-	GL_C(glGenQueriesEXT(BUFFER_SIZE, queries));
-
-#ifdef WIN32
-#else
-	GLint disjointOccurred;
-	glGetIntegerv(GL_GPU_DISJOINT_EXT, &disjointOccurred);  // clear
-#endif
-}
-
-static void StartTimingEvent() {
-
-	// on disjoint exception, clear query buffer
-#ifdef WIN32
-#else
-	GLint disjointOccurred = false;
-	glGetIntegerv(GL_GPU_DISJOINT_EXT, &disjointOccurred);
-	if (disjointOccurred) {
-		query_buffer_n = 0;
-		LOGI("disjoint exception\n");
-	}
-#endif
-
-	// read result of oldest pending query
-	// We use buffering to avoid blocking when reading results.
-	elapsed_time_seconds = NAN;
-	if (query_buffer_n > 0) {
-		int index =
-			(query_buffer_next_index + (BUFFER_SIZE - query_buffer_n)) % BUFFER_SIZE;
-		GLuint available = 0;
-
-		GLenum pname;
-#ifdef WIN32
-		pname = GL_QUERY_RESULT_AVAILABLE;
-#else
-		pname = GL_QUERY_RESULT_AVAILABLE_EXT;
-#endif
-
-		glGetQueryObjectuivEXT(queries[index], pname, &available);
-		if (available) {
-			GLuint elapsed_time_ns;
-
-#ifdef WIN32
-			pname = GL_QUERY_RESULT;
-#else
-			pname = GL_QUERY_RESULT_EXT;
-#endif
-
-			glGetQueryObjectuivEXT(queries[index], pname, &elapsed_time_ns);
-			if (glGetError() == GL_NO_ERROR) {
-				elapsed_time_seconds = elapsed_time_ns / 1e9f;
-			}
-			else {
-				LOGI("error reading query result\n");
-			}
-			--query_buffer_n;
-		}
-	}
-
-	// start new query
-	if (query_buffer_n < BUFFER_SIZE) {
-		glBeginQueryEXT(GL_TIME_ELAPSED_EXT, queries[query_buffer_next_index]);
-		if (glGetError() == GL_NO_ERROR) {
-			query_buffer_next_index = (query_buffer_next_index + 1) % BUFFER_SIZE;
-			++query_buffer_n;
-		}
-		else {
-			LOGI("glBeginQuery error\n");
-		}
-	}
-	else {
-		LOGI("query buffer overflow\n");
-	}
-}
-
-// End timing query.
-// Arg eventID is unused.
-// Must be called once for every StartTimingEvent.
-static void EndTimingEvent() {
-	glEndQueryEXT(GL_TIME_ELAPSED_EXT);
-	if (glGetError() != GL_NO_ERROR) LOGI("glEndQuery error\n");
-}
-
-// Returns timing period in seconds if available, else NaN.  Reflects the value
-// from several frames prior, depending on the level of GPU buffering.
-extern "C" float GetTiming() {
-	return elapsed_time_seconds;
-}
-
 void RenderFullscreen() {
 	GL_C(glEnableVertexAttribArray((GLuint)0));
 	GL_C(glBindBuffer(GL_ARRAY_BUFFER, fullscreenVertexVbo));
@@ -371,8 +264,6 @@ void renderFrame() {
 	// setup matrices.
 
 	//profiler->Begin(GpuTimeStamp::RENDER_EVERYTHING);
-
-
 
 	// setup GL state.
 	GL_C(glEnable(GL_DEPTH_TEST));
@@ -447,9 +338,6 @@ void setupGraphics(int w, int h) {
 	frameW = fbWidth;
 	frameH = fbHeight;
 
-	downsampleW = fbWidth;
-	downsampleH = fbHeight;
-
 	// frameFbo
 	{
 		{
@@ -517,8 +405,8 @@ void setupGraphics(int w, int h) {
 
 		void main()
 		{
-//          FragColor = vec4(fsUv, 0.0,  1.0);
-          FragColor = vec4(1.0, 0.0, 0.0,  1.0);
+          FragColor = vec4(fsUv, 0.0,  1.0);
+        //  FragColor = vec4(1.0, 0.0, 0.0,  1.0);
 		}
 		)")
 	);
@@ -568,33 +456,5 @@ void setupGraphics(int w, int h) {
 	LOGI("start loading extension!\n");
 
 	LOGI("Init opengl\n");
-
-#ifdef WIN32
-
-	glGenQueriesEXT = glGenQueries;
-
-	glEndQueryEXT = glEndQuery;
-
-	glBeginQueryEXT = glBeginQuery;
-
-	glGetQueryObjectuivEXT = glGetQueryObjectuiv;
-
-#else
-
-	glGenQueriesEXT = (PFNGLGENQUERIESEXTPROC)eglGetProcAddress("glGenQueriesEXT");
-
-	glEndQueryEXT = (PFNGLENDQUERYEXTPROC)eglGetProcAddress("glEndQueryEXT");
-
-	glBeginQueryEXT = (PFNGLBEGINQUERYEXTPROC)eglGetProcAddress("glBeginQueryEXT");
-
-	glGetQueryObjectuivEXT = (PFNGLGETQUERYOBJECTUIVEXTPROC)eglGetProcAddress("glGetQueryObjectuivEXT");
-	// glGetQueryObjectuiv
-
-#endif
-
-	InitRenderTiming();
-
-	m_frameStartTime = std::chrono::system_clock::now();
-
 }
 
