@@ -85,11 +85,7 @@ inline GLuint CreateShaderFromString(const std::string& shaderSource, const GLen
 inline GLuint LoadNormalShader(const std::string& vsSource, const std::string& fsShader) {
 
 	std::string prefix = "";
-#ifdef WIN32
-	prefix = "#version 120\n";
-#else
-	prefix = "#version 100\n";
-#endif
+	prefix = "#version 330\n";
 
 	GLuint vs = CreateShaderFromString(prefix + vsSource, GL_VERTEX_SHADER);
 	GLuint fs = CreateShaderFromString(prefix + fsShader, GL_FRAGMENT_SHADER);
@@ -212,29 +208,20 @@ int downsampleW, downsampleH;
 
 struct FullscreenVertex {
 	float x, y; // position
-	float uvx, uvy; // normal
-};
-
-struct Tri {
-	GLuint indices[3];
 };
 
 
 GLuint fullscreenVertexVbo;
 
-GLint bsPositionAttribLocation;
-GLint bsTexcoordAttribLocation;
-
-GLint ssPositionAttribLocation;
-
 GLuint blitShader;
-GLuint bsColorTexLocation;
+GLuint bsTexLocation;
+
+GLuint visShader;
+GLuint vsTexLocation;
+
 
 GLuint frameFbo;
 GLuint frameColorTexture;
-
-GLuint downsampleFbo;
-GLuint downsampleColorTexture;
 
 void error_callback(int error, const char* description)
 {
@@ -369,16 +356,11 @@ extern "C" float GetTiming() {
 }
 
 void RenderFullscreen() {
-
+	GL_C(glEnableVertexAttribArray((GLuint)0));
 	GL_C(glBindBuffer(GL_ARRAY_BUFFER, fullscreenVertexVbo));
+	GL_C(glVertexAttribPointer((GLuint)0, 2, GL_FLOAT, GL_FALSE, sizeof(FullscreenVertex), (void*)0));
 
-	GL_C(glEnableVertexAttribArray((GLuint)bsPositionAttribLocation));
-	GL_C(glVertexAttribPointer((GLuint)bsPositionAttribLocation, 2, GL_FLOAT, GL_FALSE, sizeof(FullscreenVertex), (void*)0));
-
-	GL_C(glEnableVertexAttribArray((GLuint)bsTexcoordAttribLocation));
-	GL_C(glVertexAttribPointer((GLuint)bsTexcoordAttribLocation, 2, GL_FLOAT, GL_FALSE, sizeof(FullscreenVertex), (void*)(sizeof(float) * 2)));
-
-	GL_C(glDrawArrays(GL_TRIANGLES, 0, 3));
+	GL_C(glDrawArrays(GL_TRIANGLES, 0, 6));
 }
 
 void renderFrame() {
@@ -405,20 +387,34 @@ void renderFrame() {
 	GL_C(glDepthFunc(GL_LESS));
 
 
+	GL_C(glViewport(0, 0, frameW, frameH));
+	
+	GL_C(glBindFramebuffer(GL_FRAMEBUFFER, frameFbo));
 	{
-		GL_C(glViewport(0, 0, frameW, frameH));
+
 		GL_C(glClearColor(0.0f, 0.0f, 0.0f, 0.0f));
 		GL_C(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
 
 		GL_C(glUseProgram(blitShader));
 
-		GL_C(glUniform1i(bsColorTexLocation, 0));
+		RenderFullscreen();
+	}
+	GL_C(glBindFramebuffer(GL_FRAMEBUFFER, 0));
+	
+	{
+
+		GL_C(glClearColor(0.0f, 0.0f, 0.0f, 0.0f));
+		GL_C(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
+
+		GL_C(glUseProgram(visShader));
+
+		GL_C(glUniform1i(vsTexLocation, 0));
 		GL_C(glActiveTexture(GL_TEXTURE0 + 0));
 		GL_C(glBindTexture(GL_TEXTURE_2D, frameColorTexture));
 
 		RenderFullscreen();
 	}
-
+	
 }
 
 
@@ -483,80 +479,84 @@ void setupGraphics(int w, int h) {
 		}
 	}
 
-	// downsampledFbo
-	{
-		{
-			GL_C(glGenTextures(1, &downsampleColorTexture));
-			GL_C(glBindTexture(GL_TEXTURE_2D, downsampleColorTexture));
-			GL_C(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, downsampleW, downsampleH, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr));
-			GL_C(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR));
-			GL_C(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR));
-
-			GL_C(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
-			GL_C(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
-
-			GL_C(glBindTexture(GL_TEXTURE_2D, 0));
-		}
-
-		{
-
-			GL_C(glGenFramebuffers(1, &downsampleFbo));
-			GL_C(glBindFramebuffer(GL_FRAMEBUFFER, downsampleFbo));
-
-			GL_C(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, downsampleColorTexture, 0));
-
-			checkFbo();
-
-			GL_C(glBindFramebuffer(GL_FRAMEBUFFER, 0));
-		}
-	}
-
-
 	std::string fullscreenVs(R"(
-        attribute vec2 vsPos;
-        attribute vec2 vsUv;
-        varying vec2 fsUv;
+       layout(location = 0) in vec3 vsPos;
+
+        out vec2 fsUv;
 
         void main() {
-          fsUv = vsUv;
-          gl_Position =  vec4(vsPos.xy, 0.0, 1.0);
+          fsUv = remap(vsPos.xy);
+          gl_Position =  vec4(2.0 * remap(vsPos.xy) - vec2(1.0), 0.0, 1.0);
         }
 		)");
+
+	vec2 delta(1.0f / frameW, 1.0f / frameH);
+
+	std::string fragDefines = "";
+	fragDefines += std::string("#define delta vec2(") + std::to_string(delta.x) + std::string(",") + std::to_string(delta.y) + ")\n";
+
+	std::string vertDefines = "";
+	vertDefines += fragDefines;
+	vertDefines += std::string("vec2 remap(vec2 p) { return delta + p * (1.0 - 2.0 * delta); }\n");
+
 	blitShader = LoadNormalShader(
+		vertDefines +
 		fullscreenVs,
-
-#ifndef WIN32
-		std::string("precision highp float;") +
-#endif
-
+		fragDefines +
 		std::string(R"(
 
+        in vec2 fsUv;
 
+      uniform sampler2D uTex;
+        //uniform sampler2D uDownsampleTex;
 
-        varying vec2 fsUv;
-
-        uniform sampler2D uColorTex;
-        uniform sampler2D uDownsampleTex;
-
-        uniform vec2 uScreenSpaceLightPos;
+        //uniform vec2 uScreenSpaceLightPos;
 
 #define NUM_SAMPLES 100
+        out vec4 FragColor;
+
 		void main()
 		{
-         // vec3 finalColor =
-          //  1.0f * texture2D(uColorTex, fsUv).rgb;
-//          gl_FragColor = vec4(pow(finalColor, vec3(1.0 / 2.2)), 1.0);
-          gl_FragColor = vec4(fsUv, 0.0,  1.0);
+//          FragColor = vec4(fsUv, 0.0,  1.0);
+          FragColor = vec4(1.0, 0.0, 0.0,  1.0);
 		}
 		)")
 	);
+	bsTexLocation = glGetUniformLocation(blitShader, "uColorTex");
 
+	
+	visShader = LoadNormalShader(
+		
+		std::string("vec2 remap(vec2 p) { return p; }\n") +
+
+		fullscreenVs,
+
+		std::string(R"(
+
+        in vec2 fsUv;
+
+        uniform sampler2D uTex;
+
+        out vec4 FragColor;
+
+		void main()
+		{
+          FragColor = vec4(texture2D(uTex, fsUv).rgb, 1.0);
+		}
+		)")
+	);
+	vsTexLocation = glGetUniformLocation(visShader, "uTex");
+	
 	{
 		std::vector<FullscreenVertex> vertices;
 
-		vertices.push_back(FullscreenVertex{ -1.0f, -1.0f, 0.0f, 0.0f });
-		vertices.push_back(FullscreenVertex{ +3.0f, -1.0f, 2.0f, 0.0f });
-		vertices.push_back(FullscreenVertex{ -1.0f, +3.0f, 0.0f, 2.0f });
+		vertices.push_back(FullscreenVertex{ +0.0f, +0.0f });
+		vertices.push_back(FullscreenVertex{ +1.0f, +0.0f });
+		vertices.push_back(FullscreenVertex{ +0.0f, +1.0f });
+
+		vertices.push_back(FullscreenVertex{ +1.0f, +0.0f });
+		vertices.push_back(FullscreenVertex{ +1.0f, +1.0f });
+		vertices.push_back(FullscreenVertex{ +0.0f, +1.0f });
 
 		// upload geometry to GPU.
 		GL_C(glGenBuffers(1, &fullscreenVertexVbo));
@@ -564,11 +564,7 @@ void setupGraphics(int w, int h) {
 		GL_C(glBufferData(GL_ARRAY_BUFFER, sizeof(FullscreenVertex)*vertices.size(), (float*)vertices.data(), GL_STATIC_DRAW));
 	}
 
-	bsColorTexLocation = glGetUniformLocation(blitShader, "uColorTex");
-
-	bsPositionAttribLocation = glGetAttribLocation(blitShader, "vsPos");
-	bsTexcoordAttribLocation = glGetAttribLocation(blitShader, "vsUv");
-
+	
 	LOGI("start loading extension!\n");
 
 	LOGI("Init opengl\n");
