@@ -208,6 +208,7 @@ GLuint fullscreenVertexVbo;
 
 GLuint advectShader;
 GLuint asuTexLocation;
+GLuint assTexLocation;
 
 GLuint jacobiShader;
 GLuint jsxTexLocation;
@@ -295,6 +296,55 @@ void clearTexture(GLuint tex) {
 	GL_C(glBindFramebuffer(GL_FRAMEBUFFER, 0));
 }
 
+void computeDivergence(GLuint src, GLuint dst) {
+	// compute divergence of w.
+	{
+		GL_C(glBindFramebuffer(GL_FRAMEBUFFER, fbo0));
+		GL_C(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, dst, 0));
+		GL_C(glBindFramebuffer(GL_FRAMEBUFFER, 0));
+
+		GL_C(glBindFramebuffer(GL_FRAMEBUFFER, fbo0));
+		{
+			GL_C(glClearColor(0.0f, 0.0f, 0.0f, 0.0f));
+			GL_C(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
+
+			GL_C(glUseProgram(divergenceShader));
+
+			GL_C(glUniform1i(dswTexLocation, 0));
+			GL_C(glActiveTexture(GL_TEXTURE0 + 0));
+			GL_C(glBindTexture(GL_TEXTURE_2D, src));
+
+			RenderFullscreen();
+		}
+		GL_C(glBindFramebuffer(GL_FRAMEBUFFER, 0));
+	}
+}
+
+void advect(GLuint src, GLuint u, GLuint dst) {
+	GL_C(glBindFramebuffer(GL_FRAMEBUFFER, fbo0));
+	GL_C(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, dst, 0));
+	GL_C(glBindFramebuffer(GL_FRAMEBUFFER, 0));
+
+	GL_C(glBindFramebuffer(GL_FRAMEBUFFER, fbo0));
+	{
+		GL_C(glClearColor(0.0f, 0.0f, 0.0f, 0.0f));
+		GL_C(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
+
+		GL_C(glUseProgram(advectShader));
+
+		GL_C(glUniform1i(asuTexLocation, 0));
+		GL_C(glActiveTexture(GL_TEXTURE0 + 0));
+		GL_C(glBindTexture(GL_TEXTURE_2D, u));
+
+		GL_C(glUniform1i(assTexLocation, 1));
+		GL_C(glActiveTexture(GL_TEXTURE0 + 1));
+		GL_C(glBindTexture(GL_TEXTURE_2D, src));
+
+		RenderFullscreen();
+	}
+	GL_C(glBindFramebuffer(GL_FRAMEBUFFER, 0));
+}
+
 #define GL_DEBUG_SOURCE_APPLICATION       0x824A
 void renderFrame() {
 
@@ -321,60 +371,14 @@ void renderFrame() {
 	
 	
 	glad_glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "Advection");
-
-	// advection.
-	{
-		GL_C(glBindFramebuffer(GL_FRAMEBUFFER, fbo0));
-		GL_C(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, wTex, 0));
-		GL_C(glBindFramebuffer(GL_FRAMEBUFFER, 0));
-
-		GL_C(glBindFramebuffer(GL_FRAMEBUFFER, fbo0));
-		{
-			GL_C(glClearColor(0.0f, 0.0f, 0.0f, 0.0f));
-			GL_C(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
-
-			GL_C(glUseProgram(advectShader));
-
-			GL_C(glUniform1i(asuTexLocation, 0));
-			GL_C(glActiveTexture(GL_TEXTURE0 + 0));
-			GL_C(glBindTexture(GL_TEXTURE_2D, uBegTex));
-
-			RenderFullscreen();
-		}
-		GL_C(glBindFramebuffer(GL_FRAMEBUFFER, 0));
-	}
-
+	advect(uBegTex, uBegTex, wTex);
 	glad_glPopDebugGroup();
-
 
 	glad_glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "Pressure Gradient Subtract");
 	// subtraction of pressure gradient.
 	{
-
-
 		glad_glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "Compute divergence of w");
-		// compute divergence of w.
-		{
-			GL_C(glBindFramebuffer(GL_FRAMEBUFFER, fbo0));
-			GL_C(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, wDivergenceTex, 0));
-			GL_C(glBindFramebuffer(GL_FRAMEBUFFER, 0));
-
-			GL_C(glBindFramebuffer(GL_FRAMEBUFFER, fbo0));
-			{
-				GL_C(glClearColor(0.0f, 0.0f, 0.0f, 0.0f));
-				GL_C(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
-
-				GL_C(glUseProgram(divergenceShader));
-
-				GL_C(glUniform1i(dswTexLocation, 0));
-				GL_C(glActiveTexture(GL_TEXTURE0 + 0));
-				GL_C(glBindTexture(GL_TEXTURE_2D, wTex));
-
-				RenderFullscreen();
-			}
-			GL_C(glBindFramebuffer(GL_FRAMEBUFFER, 0));
-		}
-
+		computeDivergence(wTex, wDivergenceTex);
 		glad_glPopDebugGroup();
 
 		glad_glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "Compute pressure");
@@ -423,13 +427,6 @@ void renderFrame() {
 
 			// now we have the pressure:
 			pTex = pTempTex[(iter + 0) % 2];
-
-
-
-			
-
-
-
 		}
 		glad_glPopDebugGroup();
 
@@ -624,18 +621,20 @@ void setupGraphics(int w, int h) {
         in vec2 fsUv;
 
         uniform sampler2D uuTex;
+        uniform sampler2D usTex;
 
         out vec4 FragColor;
 
 		void main()
 		{
           vec2 tc = fsUv - timeStep * delta * texture(uuTex, fsUv).xy;
-          FragColor = texture(uuTex, tc);
+          FragColor = texture(usTex, tc);
 
 		}
 		)")
 	);
 	asuTexLocation = glGetUniformLocation(advectShader, "uuTex");
+	assTexLocation = glGetUniformLocation(advectShader, "usTex");
 
 	jacobiShader = LoadNormalShader(
 		vertDefines +
