@@ -202,8 +202,8 @@ struct FullscreenVertex {
 
 GLuint fullscreenVertexVbo;
 
-GLuint blitShader;
-GLuint bsTexLocation;
+GLuint advectShader;
+GLuint asUTexLocation;
 
 GLuint visShader;
 GLuint vsTexLocation;
@@ -211,7 +211,8 @@ GLuint vsTexLocation;
 GLuint fbo0;
 GLuint fbo1;
 
-GLuint uTex;
+GLuint uBegTex;
+GLuint uEndTex;
 
 void error_callback(int error, const char* description)
 {
@@ -283,23 +284,24 @@ void renderFrame() {
 	GL_C(glViewport(0, 0, frameW, frameH));
 	
 
+	//advect_with_single_shader;
+	
 	GL_C(glBindFramebuffer(GL_FRAMEBUFFER, fbo0));
-	GL_C(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, uTex, 0));
+	GL_C(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, uEndTex, 0));
 	GL_C(glBindFramebuffer(GL_FRAMEBUFFER, 0));
-
 
 	GL_C(glBindFramebuffer(GL_FRAMEBUFFER, fbo0));
 	{
-
 		GL_C(glClearColor(0.0f, 0.0f, 0.0f, 0.0f));
 		GL_C(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
 
-		GL_C(glUseProgram(blitShader));
+		GL_C(glUseProgram(advectShader));
 
 		RenderFullscreen();
 	}
 	GL_C(glBindFramebuffer(GL_FRAMEBUFFER, 0));
 	
+
 	{
 		GL_C(glClearColor(0.0f, 0.0f, 0.0f, 0.0f));
 		GL_C(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
@@ -308,13 +310,12 @@ void renderFrame() {
 
 		GL_C(glUniform1i(vsTexLocation, 0));
 		GL_C(glActiveTexture(GL_TEXTURE0 + 0));
-		GL_C(glBindTexture(GL_TEXTURE_2D, uTex));
+		GL_C(glBindTexture(GL_TEXTURE_2D, uEndTex));
 
 		RenderFullscreen();
 	}
 	
 }
-
 
 #ifdef WIN32
 void HandleInput() {
@@ -333,12 +334,12 @@ void checkFbo() {
 	}
 }
 
-GLuint createFloatTexture() {
+GLuint createFloatTexture(float* data) {
 	GLuint tex;
 
 	GL_C(glGenTextures(1, &tex));
 	GL_C(glBindTexture(GL_TEXTURE_2D, tex));
-	GL_C(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, frameW, frameH, 0, GL_RGBA, GL_FLOAT, nullptr));
+	GL_C(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, frameW, frameH, 0, GL_RGBA, GL_FLOAT, data));
 	GL_C(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR));
 	GL_C(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR));
 
@@ -365,7 +366,50 @@ void setupGraphics(int w, int h) {
 	// frameFbo
 	{
 		{
-			uTex = createFloatTexture();
+			float* data = new float[frameW * frameH * 4];
+			for (int y = 0; y < frameH; ++y)  {
+				for (int x = 0; x < frameW; ++x) {
+					float fx = (float)x / (float)frameW;
+
+					float fy = (float)y / (float)frameH;
+
+					float dist = sqrt((fx - 0.5f)*(fx - 0.5f) + (fy - 0.5f)*(fy - 0.5f));
+
+					if (dist < 0.2) {
+						float v = 0.2 - dist;
+
+						data[4 * (frameW * y + x) + 0] = 0.0f * v;
+						data[4 * (frameW * y + x) + 1] = 1.0f * v;
+
+						data[4 * (frameW * y + x) + 2] = 0.0f;
+						data[4 * (frameW * y + x) + 3] = 0.0f;
+					}
+					else {
+
+						data[4 * (frameW * y + x) + 0] = 0.0f;
+						data[4 * (frameW * y + x) + 1] = 0.0f;
+
+						data[4 * (frameW * y + x) + 2] = 0.0f;
+						data[4 * (frameW * y + x) + 3] = 0.0f;
+					}
+
+				}
+			}
+			uBegTex = createFloatTexture(data);
+
+			data = new float[frameW * frameH * 4];
+			for (int y = 0; y < frameH; ++y) {
+				for (int x = 0; x < frameW; ++x) {
+
+					data[4 * (frameW * y + x) + 0] = 0.0f;
+					data[4 * (frameW * y + x) + 1] = 0.0f;
+					
+					data[4 * (frameW * y + x) + 2] = 0.0f;
+					data[4 * (frameW * y + x) + 3] = 0.0f;
+				}
+			}
+			uEndTex = createFloatTexture(data);
+
 		}
 
 		{
@@ -380,7 +424,9 @@ void setupGraphics(int w, int h) {
         out vec2 fsUv;
 
         void main() {
-          fsUv = remap(vsPos.xy);
+//          fsUv = remap(vsPos.xy) + 10.5*delta;
+          fsUv = remap(vsPos.xy) + vec2(0.3);
+
           gl_Position =  vec4(2.0 * remap(vsPos.xy) - vec2(1.0), 0.0, 1.0);
         }
 		)");
@@ -388,13 +434,13 @@ void setupGraphics(int w, int h) {
 	vec2 delta(1.0f / frameW, 1.0f / frameH);
 
 	std::string fragDefines = "";
-	fragDefines += std::string("#define delta vec2(") + std::to_string(delta.x) + std::string(",") + std::to_string(delta.y) + ")\n";
+	fragDefines += std::string("const vec2 delta = vec2(") + std::to_string(delta.x) + std::string(",") + std::to_string(delta.y) + ");\n";
 
 	std::string vertDefines = "";
 	vertDefines += fragDefines;
 	vertDefines += std::string("vec2 remap(vec2 p) { return delta + p * (1.0 - 2.0 * delta); }\n");
 
-	blitShader = LoadNormalShader(
+	advectShader = LoadNormalShader(
 		vertDefines +
 		fullscreenVs,
 		fragDefines +
@@ -417,13 +463,23 @@ void setupGraphics(int w, int h) {
 		}
 		)")
 	);
-	bsTexLocation = glGetUniformLocation(blitShader, "uColorTex");
+	asUTexLocation = glGetUniformLocation(advectShader, "uUTex");
 	
 	visShader = LoadNormalShader(
 		
-		std::string("vec2 remap(vec2 p) { return p; }\n") +
+		
+		std::string(R"(
+       layout(location = 0) in vec3 vsPos;
 
-		fullscreenVs,
+        out vec2 fsUv;
+
+        void main() {
+          fsUv = vsPos.xy;
+          gl_Position =  vec4(2.0 * vsPos.xy - vec2(1.0), 0.0, 1.0);
+        }
+		)")
+
+		,
 
 		std::string(R"(
 
