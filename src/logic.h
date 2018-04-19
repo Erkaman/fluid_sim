@@ -230,8 +230,14 @@ GLuint gsswTexLocation;
 GLuint fbo0;
 GLuint fbo1;
 
+// velocity.
 GLuint uBegTex;
 GLuint uEndTex;
+
+// color.
+GLuint cBegTex;
+GLuint cEndTex;
+
 GLuint wTex;
 GLuint wDivergenceTex;
 GLuint pTempTex[2];
@@ -370,9 +376,13 @@ void renderFrame() {
 	GL_C(glViewport(0, 0, frameW, frameH));
 	
 	
-	glad_glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "Advection");
+	glad_glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "u Advection");
 	advect(uBegTex, uBegTex, wTex);
 	glad_glPopDebugGroup();
+
+	glad_glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "c Advection");
+	advect(cBegTex, uBegTex, cEndTex);
+	glad_glPopDebugGroup();	
 
 	glad_glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "Pressure Gradient Subtract");
 	// subtraction of pressure gradient.
@@ -470,7 +480,7 @@ void renderFrame() {
 
 		GL_C(glUniform1i(vsTexLocation, 0));
 		GL_C(glActiveTexture(GL_TEXTURE0 + 0));
-		GL_C(glBindTexture(GL_TEXTURE_2D, uEndTex));
+		GL_C(glBindTexture(GL_TEXTURE_2D, cEndTex));
 
 		RenderFullscreen();
 	}
@@ -481,6 +491,9 @@ void renderFrame() {
 	uBegTex = uEndTex;
 	uEndTex = temp;
 	
+	temp = cBegTex;
+	cBegTex = cEndTex;
+	cEndTex = temp;
 	
 }
 
@@ -533,7 +546,7 @@ void setupGraphics(int w, int h) {
 	// frameFbo
 	{
 		{
-			float* data = new float[frameW * frameH * 4];
+			float* uData = new float[frameW * frameH * 4];
 			for (int y = 0; y < frameH; ++y)  {
 				for (int x = 0; x < frameW; ++x) {
 					float fx = (float)x / (float)frameW;
@@ -546,24 +559,51 @@ void setupGraphics(int w, int h) {
 						float v = 0.2 - dist;
 						v *= 10.0f;
 
-						data[4 * (frameW * y + x) + 0] = 0.0f * v;
-						data[4 * (frameW * y + x) + 1] = 1.0f * v;
-
-						data[4 * (frameW * y + x) + 2] = 0.0f;
-						data[4 * (frameW * y + x) + 3] = 0.0f;
+						uData[4 * (frameW * y + x) + 0] = 0.0f * v;
+						uData[4 * (frameW * y + x) + 1] = 1.0f * v;
+						uData[4 * (frameW * y + x) + 2] = 0.0f;
+						uData[4 * (frameW * y + x) + 3] = 0.0f;
 					}
 					else {
-
-						data[4 * (frameW * y + x) + 0] = 0.0f;
-						data[4 * (frameW * y + x) + 1] = 0.0f;
-
-						data[4 * (frameW * y + x) + 2] = 0.0f;
-						data[4 * (frameW * y + x) + 3] = 0.0f;
+						uData[4 * (frameW * y + x) + 0] = 0.0f;
+						uData[4 * (frameW * y + x) + 1] = 0.0f;
+						uData[4 * (frameW * y + x) + 2] = 0.0f;
+						uData[4 * (frameW * y + x) + 3] = 0.0f;
 					}
 
 				}
 			}
-			uBegTex = createFloatTexture(data);
+			uBegTex = createFloatTexture(uData);
+
+			float* cData = new float[frameW * frameH * 4];
+			for (int y = 0; y < frameH; ++y) {
+				for (int x = 0; x < frameW; ++x) {
+					float fx = (float)x / (float)frameW;
+					float fy = (float)y / (float)frameH;
+
+					float r = 1.0f;
+					float g = 0.0f;
+					float b = 0.0f;
+
+
+					if (fx > 0.5 && fy > 0.5) {
+						float r = 0.0f;
+						float g = 1.0f;
+						float b = 0.0f;
+					}
+
+					r = fx;
+					g = fy;;
+					b = fmaxf(fx, fy);
+
+					cData[4 * (frameW * y + x) + 0] = r;			
+					cData[4 * (frameW * y + x) + 1] = g;			
+					cData[4 * (frameW * y + x) + 2] = b;
+					cData[4 * (frameW * y + x) + 3] = 1.0f;
+
+				}
+			}
+			cBegTex = createFloatTexture(cData);
 
 			float* zeroData = new float[frameW * frameH * 4];
 			for (int y = 0; y < frameH; ++y) {
@@ -576,6 +616,7 @@ void setupGraphics(int w, int h) {
 				}
 			}
 			uEndTex = createFloatTexture(zeroData);
+			cEndTex = createFloatTexture(zeroData);
 			wTex = createFloatTexture(zeroData);
 			wDivergenceTex = createFloatTexture(zeroData);
 
