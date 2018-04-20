@@ -227,6 +227,11 @@ GLuint gradientSubtractionShader;
 GLuint gsspTexLocation;
 GLuint gsswTexLocation;
 
+GLuint forceShader;
+GLuint fswTexLocation;
+GLuint fsForceLocation;
+GLuint fsPosLocation;
+
 GLuint fbo0;
 GLuint fbo1;
 
@@ -239,6 +244,7 @@ GLuint cBegTex;
 GLuint cEndTex;
 
 GLuint wTex;
+GLuint wTempTex;
 GLuint wDivergenceTex;
 GLuint pTempTex[2];
 GLuint pTex;
@@ -385,11 +391,47 @@ void renderFrame() {
 	advect(cBegTex, uBegTex, cEndTex);
 	glad_glPopDebugGroup();	
 
+	static int counter = 0;
+	counter++;
+
+	// add force.
+	glad_glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "c Add Force");
+	{
+		GL_C(glBindFramebuffer(GL_FRAMEBUFFER, fbo0));
+		GL_C(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, wTempTex, 0));
+		GL_C(glBindFramebuffer(GL_FRAMEBUFFER, 0));
+
+		GL_C(glBindFramebuffer(GL_FRAMEBUFFER, fbo0));
+		{
+			GL_C(glClearColor(0.0f, 0.0f, 0.0f, 0.0f));
+			GL_C(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
+
+			GL_C(glUseProgram(forceShader));
+			
+			GL_C(glUniform1i(fswTexLocation, 0));
+			GL_C(glActiveTexture(GL_TEXTURE0 + 0));
+			GL_C(glBindTexture(GL_TEXTURE_2D, wTex));
+
+			GL_C(glUniform2f(fsPosLocation, 0.5f, 0.5f));
+			if (counter == 10) {
+				GL_C(glUniform2f(fsForceLocation, 0.0f, 0.1f));
+			}
+			else {
+				GL_C(glUniform2f(fsForceLocation, 0.0f, 0.0f));
+			}
+
+			RenderFullscreen();
+		}
+		GL_C(glBindFramebuffer(GL_FRAMEBUFFER, 0));
+	}
+	glad_glPopDebugGroup();
+
+
 	glad_glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "Pressure Gradient Subtract");
 	// subtraction of pressure gradient.
 	{
 		glad_glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "Compute divergence of w");
-		computeDivergence(wTex, wDivergenceTex);
+		computeDivergence(wTempTex, wDivergenceTex);
 		glad_glPopDebugGroup();
 
 		glad_glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "Compute pressure");
@@ -403,7 +445,7 @@ void renderFrame() {
 
 			glad_glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "Jacobi");
 			int iter;
-			for (iter = 0; iter < 20; ++iter) {
+			for (iter = 0; iter < 200; ++iter) {
 				int curJ = (iter + 0) % 2;
 				int nextJ = (iter + 1) % 2;
 				
@@ -426,8 +468,8 @@ void renderFrame() {
 					GL_C(glActiveTexture(GL_TEXTURE0 + 1));
 					GL_C(glBindTexture(GL_TEXTURE_2D, wDivergenceTex));
 					
-					GL_C(glUniform2f(jsBetaLocation, -delta.x*delta.x, -delta.y*delta.y));
-					GL_C(glUniform2f(jsAlphaLocation, 1.0 / 4.0, 1.0 / 4.0));
+					GL_C(glUniform2f(jsAlphaLocation, -delta.x*delta.x, -delta.y*delta.y));
+					GL_C(glUniform2f(jsBetaLocation, 1.0 / 4.0, 1.0 / 4.0));
 					
 					RenderFullscreen();
 				}
@@ -456,7 +498,7 @@ void renderFrame() {
 				
 				GL_C(glUniform1i(gsswTexLocation, 0));
 				GL_C(glActiveTexture(GL_TEXTURE0 + 0));
-				GL_C(glBindTexture(GL_TEXTURE_2D, wTex));
+				GL_C(glBindTexture(GL_TEXTURE_2D, wTempTex));
 
 				GL_C(glUniform1i(gsspTexLocation, 1));
 				GL_C(glActiveTexture(GL_TEXTURE0 + 1));
@@ -552,34 +594,7 @@ void setupGraphics(int w, int h) {
 	// frameFbo
 	{
 		{
-			float* uData = new float[frameW * frameH * 4];
-			for (int y = 0; y < frameH; ++y)  {
-				for (int x = 0; x < frameW; ++x) {
-					float fx = (float)x / (float)frameW;
-
-					float fy = (float)y / (float)frameH;
-
-					float dist = sqrt((fx - 0.5f)*(fx - 0.5f) + (fy - 0.5f)*(fy - 0.5f));
-
-					if (dist < 0.2) {
-						float v = 0.2 - dist;
-						v *= 70.0f * (1.0 / 60.0);
-
-						uData[4 * (frameW * y + x) + 0] = 0.0f * v;
-						uData[4 * (frameW * y + x) + 1] = 1.0f * v;
-						uData[4 * (frameW * y + x) + 2] = 0.0f;
-						uData[4 * (frameW * y + x) + 3] = 0.0f;
-					}
-					else {
-						uData[4 * (frameW * y + x) + 0] = 0.0f;
-						uData[4 * (frameW * y + x) + 1] = 0.0f;
-						uData[4 * (frameW * y + x) + 2] = 0.0f;
-						uData[4 * (frameW * y + x) + 3] = 0.0f;
-					}
-
-				}
-			}
-			uBegTex = createFloatTexture(uData);
+			
 
 			float* cData = new float[frameW * frameH * 4];
 			for (int y = 0; y < frameH; ++y) {
@@ -621,15 +636,16 @@ void setupGraphics(int w, int h) {
 					zeroData[4 * (frameW * y + x) + 3] = 0.0f;
 				}
 			}
+			uBegTex = createFloatTexture(zeroData);
 			uEndTex = createFloatTexture(zeroData);
 			cEndTex = createFloatTexture(zeroData);
 			wTex = createFloatTexture(zeroData);
+			wTempTex = createFloatTexture(zeroData);
 			wDivergenceTex = createFloatTexture(zeroData);
 			debugTex = createFloatTexture(zeroData);
 
 			pTempTex[0] = createFloatTexture(zeroData);
 			pTempTex[1] = createFloatTexture(zeroData);
-
 		}
 
 		{
@@ -716,7 +732,7 @@ void setupGraphics(int w, int h) {
 	jsbTexLocation = glGetUniformLocation(jacobiShader, "ubTex");
 	jsBetaLocation = glGetUniformLocation(jacobiShader, "uBeta");
 	jsAlphaLocation = glGetUniformLocation(jacobiShader, "uAlpha");
-
+	
 	divergenceShader = LoadNormalShader(
 		vertDefines +
 		fullscreenVs,
@@ -728,7 +744,7 @@ void setupGraphics(int w, int h) {
         uniform sampler2D uwTex;
 
         out vec4 FragColor;
-
+	
 		void main()
 		{
           vec4 wR = texture(uwTex, fsUv + vec2(+1, +0) * delta);
@@ -772,6 +788,36 @@ void setupGraphics(int w, int h) {
 	gsspTexLocation = glGetUniformLocation(gradientSubtractionShader, "upTex");
 	gsswTexLocation = glGetUniformLocation(gradientSubtractionShader, "uwTex");
 
+	forceShader = LoadNormalShader(
+		vertDefines +
+		fullscreenVs,
+		fragDefines +
+		std::string(R"(
+
+        in vec2 fsUv;
+
+        uniform sampler2D uwTex;
+        uniform vec2 uForce;
+        uniform vec2 uPos;
+
+        out vec4 FragColor;
+
+		void main()
+		{
+          vec2 F = vec2(0.0, 0.0);
+          float dist = distance(fsUv, uPos);
+          if(dist < 0.2) {
+            F += ((0.2 - dist)/0.2) * uForce;
+          }
+
+          FragColor = vec4(F.xy, 0.0, 0.0) + texture(uwTex, fsUv);
+		}
+		)")
+	);
+	fswTexLocation = glGetUniformLocation(forceShader, "uwTex");
+	fsForceLocation = glGetUniformLocation(forceShader, "uForce");
+	fsPosLocation = glGetUniformLocation(forceShader, "uPos");
+	
 	visShader = LoadNormalShader(
 		
 		std::string(R"(
