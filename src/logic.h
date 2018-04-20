@@ -191,7 +191,7 @@ const int WINDOW_HEIGHT = 256;
 
 GLuint vao;
 
-float timeStep = 1.0 / 60.0f;
+//float timeStep = 1.0 / 60.0f;
 
 int fbWidth, fbHeight;
 
@@ -242,6 +242,7 @@ GLuint wTex;
 GLuint wDivergenceTex;
 GLuint pTempTex[2];
 GLuint pTex;
+GLuint debugTex;
 
 
 void error_callback(int error, const char* description)
@@ -467,6 +468,10 @@ void renderFrame() {
 		}
 		glad_glPopDebugGroup();
 
+		glad_glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "debugtex");
+		computeDivergence(uEndTex, debugTex);
+		glad_glPopDebugGroup();
+
 	}
 	glad_glPopDebugGroup();
 
@@ -485,6 +490,7 @@ void renderFrame() {
 		RenderFullscreen();
 	}
 	glad_glPopDebugGroup();
+
 
 	// swap.
 	GLuint temp = uBegTex;
@@ -557,7 +563,7 @@ void setupGraphics(int w, int h) {
 
 					if (dist < 0.2) {
 						float v = 0.2 - dist;
-						v *= 10.0f;
+						v *= 70.0f * (1.0 / 60.0);
 
 						uData[4 * (frameW * y + x) + 0] = 0.0f * v;
 						uData[4 * (frameW * y + x) + 1] = 1.0f * v;
@@ -619,6 +625,7 @@ void setupGraphics(int w, int h) {
 			cEndTex = createFloatTexture(zeroData);
 			wTex = createFloatTexture(zeroData);
 			wDivergenceTex = createFloatTexture(zeroData);
+			debugTex = createFloatTexture(zeroData);
 
 			pTempTex[0] = createFloatTexture(zeroData);
 			pTempTex[1] = createFloatTexture(zeroData);
@@ -646,8 +653,7 @@ void setupGraphics(int w, int h) {
 
 	std::string fragDefines = "";
 	fragDefines += std::string("const vec2 delta = vec2(") + std::to_string(delta.x) + std::string(",") + std::to_string(delta.y) + ");\n";
-	fragDefines += std::string("const float timeStep = ") + std::to_string(timeStep) + ";\n";
-
+	
 	std::string vertDefines = "";
 	vertDefines += fragDefines;
 	vertDefines += std::string("vec2 remapPos(vec2 p) { return delta + p * (1.0 - 2.0 * delta); }\n");
@@ -668,7 +674,7 @@ void setupGraphics(int w, int h) {
 
 		void main()
 		{
-          vec2 tc = fsUv - timeStep * delta * texture(uuTex, fsUv).xy;
+          vec2 tc = fsUv - delta * texture(uuTex, fsUv).xy;
           FragColor = texture(usTex, tc);
 
 		}
