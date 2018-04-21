@@ -201,7 +201,7 @@ struct FullscreenVertex {
 	float x, y; // position
 };
 
-vec2 delta;
+//vec2 delta;
 
 
 GLuint fullscreenVertexVbo;
@@ -249,6 +249,10 @@ GLuint wDivergenceTex;
 GLuint pTempTex[2];
 GLuint pTex;
 GLuint debugTex;
+
+GLuint debugDataTex;
+GLuint debugDataTex2;
+
 
 
 void error_callback(int error, const char* description)
@@ -358,6 +362,46 @@ void advect(GLuint src, GLuint u, GLuint dst) {
 	GL_C(glBindFramebuffer(GL_FRAMEBUFFER, 0));
 }
 
+GLuint  jacobi(const int nIter, GLuint bTex, GLuint* tempTex) {
+	int iter;
+	for (iter = 0; iter < nIter; ++iter) {
+		int curJ = (iter + 0) % 2;
+		int nextJ = (iter + 1) % 2;
+
+		GL_C(glBindFramebuffer(GL_FRAMEBUFFER, fbo0));
+		GL_C(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tempTex[nextJ], 0));
+		GL_C(glBindFramebuffer(GL_FRAMEBUFFER, 0));
+
+		GL_C(glBindFramebuffer(GL_FRAMEBUFFER, fbo0));
+		{
+			GL_C(glClearColor(0.0f, 0.0f, 0.0f, 0.0f));
+			GL_C(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
+
+			GL_C(glUseProgram(jacobiShader));
+
+			GL_C(glUniform1i(jsxTexLocation, 0));
+			GL_C(glActiveTexture(GL_TEXTURE0 + 0));
+			GL_C(glBindTexture(GL_TEXTURE_2D, tempTex[curJ]));
+
+			GL_C(glUniform1i(jsbTexLocation, 1));
+			GL_C(glActiveTexture(GL_TEXTURE0 + 1));
+			GL_C(glBindTexture(GL_TEXTURE_2D, bTex));
+
+			//GL_C(glUniform2f(jsAlphaLocation, -delta.x*delta.x, -delta.y*delta.y));
+			GL_C(glUniform2f(jsAlphaLocation, -1.0f, -1.0f));
+
+			GL_C(glUniform2f(jsBetaLocation, 1.0 / 4.0, 1.0 / 4.0));
+
+
+			RenderFullscreen();
+		}
+		GL_C(glBindFramebuffer(GL_FRAMEBUFFER, 0));
+	}
+	
+	// now we have the pressure:
+	return tempTex[(iter + 0) % 2];
+}
+
 #define GL_DEBUG_SOURCE_APPLICATION       0x824A
 void renderFrame() {
 
@@ -382,14 +426,28 @@ void renderFrame() {
 
 	GL_C(glViewport(0, 0, frameW, frameH));
 	
+	glad_glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "Clear pTemp Textures");
+	clearTexture(pTempTex[0]);
+	clearTexture(pTempTex[1]);
+	glad_glPopDebugGroup();
+
+	
+	glad_glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "jacobi test code");
+	pTex = jacobi(200,
+		debugDataTex, // b
+		pTempTex
+	);
+	glad_glPopDebugGroup();
+	
+	glad_glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "c Advection");
+	advect(cBegTex, uBegTex, cEndTex);
+	glad_glPopDebugGroup();
+
 	
 	glad_glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "u Advection");
 	advect(uBegTex, uBegTex, wTex);
 	glad_glPopDebugGroup();
 
-	glad_glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "c Advection");
-	advect(cBegTex, uBegTex, cEndTex);
-	glad_glPopDebugGroup();	
 
 	static int counter = 0;
 	counter++;
@@ -398,7 +456,12 @@ void renderFrame() {
 	glad_glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "c Add Force");
 	{
 		GL_C(glBindFramebuffer(GL_FRAMEBUFFER, fbo0));
-		GL_C(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, wTempTex, 0));
+		GL_C(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, 
+			
+			wTempTex,
+			//uEndTex,
+			
+			0));
 		GL_C(glBindFramebuffer(GL_FRAMEBUFFER, 0));
 
 		GL_C(glBindFramebuffer(GL_FRAMEBUFFER, fbo0));
@@ -408,16 +471,26 @@ void renderFrame() {
 
 			GL_C(glUseProgram(forceShader));
 			
+		//	a single application of force should be necessary.
+
+			//	also the spot of the force, should be very tiny.
+
 			GL_C(glUniform1i(fswTexLocation, 0));
 			GL_C(glActiveTexture(GL_TEXTURE0 + 0));
 			GL_C(glBindTexture(GL_TEXTURE_2D, wTex));
-
-			GL_C(glUniform2f(fsPosLocation, 0.5f, 0.5f));
+			
 			if (counter == 10) {
-				GL_C(glUniform2f(fsForceLocation, 0.0f, 0.1f));
+				//float t = (counter - 10) / 30.0f;
+
+				GL_C(glUniform2f(fsPosLocation, 0.5f, 0.5f));
+				
+			   GL_C(glUniform2f(fsForceLocation, +0.0f, +0.1f));
+
 			}
 			else {
-				GL_C(glUniform2f(fsForceLocation, 0.0f, 0.0f));
+
+				GL_C(glUniform2f(fsPosLocation, 0.5f, 0.5f));
+				GL_C(glUniform2f(fsForceLocation, 0.0f, 0.5f));
 			}
 
 			RenderFullscreen();
@@ -425,7 +498,6 @@ void renderFrame() {
 		GL_C(glBindFramebuffer(GL_FRAMEBUFFER, 0));
 	}
 	glad_glPopDebugGroup();
-
 
 	glad_glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "Pressure Gradient Subtract");
 	// subtraction of pressure gradient.
@@ -444,44 +516,18 @@ void renderFrame() {
 			glad_glPopDebugGroup();
 
 			glad_glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "Jacobi");
-			int iter;
-			for (iter = 0; iter < 200; ++iter) {
-				int curJ = (iter + 0) % 2;
-				int nextJ = (iter + 1) % 2;
-				
-				GL_C(glBindFramebuffer(GL_FRAMEBUFFER, fbo0));
-				GL_C(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, pTempTex[nextJ], 0));
-				GL_C(glBindFramebuffer(GL_FRAMEBUFFER, 0));
 
-				GL_C(glBindFramebuffer(GL_FRAMEBUFFER, fbo0));
-				{
-					GL_C(glClearColor(0.0f, 0.0f, 0.0f, 0.0f));
-					GL_C(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
-					
-					GL_C(glUseProgram(jacobiShader));
-					
-					GL_C(glUniform1i(jsxTexLocation, 0));
-					GL_C(glActiveTexture(GL_TEXTURE0 + 0));
-					GL_C(glBindTexture(GL_TEXTURE_2D, pTempTex[curJ]));
-					
-					GL_C(glUniform1i(jsbTexLocation, 1));
-					GL_C(glActiveTexture(GL_TEXTURE0 + 1));
-					GL_C(glBindTexture(GL_TEXTURE_2D, wDivergenceTex));
-					
-					GL_C(glUniform2f(jsAlphaLocation, -delta.x*delta.x, -delta.y*delta.y));
-					GL_C(glUniform2f(jsBetaLocation, 1.0 / 4.0, 1.0 / 4.0));
-					
-					RenderFullscreen();
-				}
-				GL_C(glBindFramebuffer(GL_FRAMEBUFFER, 0));
+			pTex = jacobi(40,
+				wDivergenceTex, // b
+				pTempTex
+			);
 
-			}
 			glad_glPopDebugGroup();
 
-			// now we have the pressure:
-			pTex = pTempTex[(iter + 0) % 2];
 		}
 		glad_glPopDebugGroup();
+
+	//	I think maybe the texture sampling coordinates are wrong. try not samplignthe texel center.
 
 		glad_glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "pressure gradient subtraction");
 		{
@@ -517,7 +563,6 @@ void renderFrame() {
 	}
 	glad_glPopDebugGroup();
 
-	
 	glad_glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "Rendering");
 	{
 		GL_C(glClearColor(0.0f, 0.0f, 0.0f, 0.0f));
@@ -533,16 +578,17 @@ void renderFrame() {
 	}
 	glad_glPopDebugGroup();
 
+	if (counter <= 30000) {
 
-	// swap.
-	GLuint temp = uBegTex;
-	uBegTex = uEndTex;
-	uEndTex = temp;
-	
-	temp = cBegTex;
-	cBegTex = cEndTex;
-	cEndTex = temp;
-	
+		// swap.
+		GLuint temp = uBegTex;
+		uBegTex = uEndTex;
+		uEndTex = temp;
+
+		temp = cBegTex;
+		cBegTex = cEndTex;
+		cEndTex = temp;
+	}
 }
 
 #ifdef WIN32
@@ -590,6 +636,8 @@ void setupGraphics(int w, int h) {
 
 	frameW = fbWidth;
 	frameH = fbHeight;
+
+	//delta = vec2(1.0f / frameW, 1.0f / frameH);
 
 	// frameFbo
 	{
@@ -646,6 +694,19 @@ void setupGraphics(int w, int h) {
 
 			pTempTex[0] = createFloatTexture(zeroData);
 			pTempTex[1] = createFloatTexture(zeroData);
+
+			float r = 1.0f / (1.0f);
+			//float r = 1.0f;
+
+			zeroData[4 * (frameW * 10 + 10) + 0] = (-4.0 * 5.0f) * r;
+
+			zeroData[4 * (frameW * 11 + 10) + 0] = 5.0f * r;
+			zeroData[4 * (frameW * 9  + 10) + 0] = 5.0f * r;
+			zeroData[4 * (frameW * 10 + 11) + 0] = 5.0f * r;
+			zeroData[4 * (frameW * 10 + 9 ) + 0] = 5.0f * r;
+
+			debugDataTex = createFloatTexture(zeroData);
+			debugDataTex2 = createFloatTexture(zeroData);
 		}
 
 		{
@@ -665,14 +726,18 @@ void setupGraphics(int w, int h) {
         }
 		)");
 
-	delta = vec2(1.0f / frameW, 1.0f / frameH);
+
 
 	std::string fragDefines = "";
-	fragDefines += std::string("const vec2 delta = vec2(") + std::to_string(delta.x) + std::string(",") + std::to_string(delta.y) + ");\n";
-	
+	fragDefines += std::string("const vec2 delta = vec2(") + std::to_string(1.0f / float(frameW)) + std::string(",") + std::to_string(1.0f / float(frameH)) + ");\n";
+	//fragDefines += std::string("const vec2 delta = vec2(") + std::to_string(1.0 / float(frameW)) + std::string(",") + std::to_string(1.0 / float(frameH)) + ");\n";
+
+
 	std::string vertDefines = "";
 	vertDefines += fragDefines;
 	vertDefines += std::string("vec2 remapPos(vec2 p) { return delta + p * (1.0 - 2.0 * delta); }\n");
+	//vertDefines += std::string("vec2 remapPos(vec2 p) { return p; }\n");
+
 	//vertDefines += std::string("vec2 remapUv(vec2 p) { return 1.5*delta + p * (1.0 - 3.0 * delta); }\n");
 
 	advectShader = LoadNormalShader(
@@ -722,7 +787,7 @@ void setupGraphics(int w, int h) {
           vec4 xT = texture(uxTex, fsUv + vec2(+0, +1) * delta);
           vec4 xB = texture(uxTex, fsUv + vec2(+0, -1) * delta);
 
-          vec4 bC = texture(ubTex, fsUv + vec2(+0, +0) * delta);
+          vec4 bC = texture(ubTex, fsUv);
 
           FragColor = (xR + xL + xT + xB + vec4(uAlpha.xy, 0.0, 0.0) * bC) * vec4(uBeta.xy, 0.0, 0.0);
 		}
@@ -752,8 +817,8 @@ void setupGraphics(int w, int h) {
           vec4 wT = texture(uwTex, fsUv + vec2(+0, +1) * delta);
           vec4 wB = texture(uwTex, fsUv + vec2(+0, -1) * delta);
 
-          FragColor = vec4(0.0f);
-          FragColor.x = 0.5 * delta.x * (wR.x - wL.x) + 0.5 * delta.y * (wT.y - wB.y);
+          FragColor = vec4(0.5 * (wR.x - wL.x) + 0.5 * (wT.y - wB.y));
+       
 		}
 		)")
 	);
@@ -780,7 +845,7 @@ void setupGraphics(int w, int h) {
           vec4 pB = texture(upTex, fsUv + vec2(+0, -1) * delta);
 
           vec4 c =  texture(uwTex, fsUv);
-          c.xy -= vec2(0.5 * delta.x * (pR.x - pL.x), 0.5 * delta.y * (pT.y - pB.y));
+          c.xy -= vec2(0.5 * (pR.x - pL.x), 0.5 * (pT.y - pB.y));
           FragColor = c;
 		}
 		)")
@@ -806,8 +871,8 @@ void setupGraphics(int w, int h) {
 		{
           vec2 F = vec2(0.0, 0.0);
           float dist = distance(fsUv, uPos);
-          if(dist < 0.2) {
-            F += ((0.2 - dist)/0.2) * uForce;
+          if(dist < 0.05) {
+            F += ((0.05 - dist)/0.05) * uForce;
           }
 
           FragColor = vec4(F.xy, 0.0, 0.0) + texture(uwTex, fsUv);
@@ -830,7 +895,7 @@ void setupGraphics(int w, int h) {
           gl_Position =  vec4(2.0 * vsPos.xy - vec2(1.0), 0.0, 1.0);
         }
 		)")
-
+		
 		,
 
 		std::string(R"(
