@@ -431,23 +431,22 @@ void renderFrame() {
 	clearTexture(pTempTex[1]);
 	glad_glPopDebugGroup();
 
-	
+	/*
 	glad_glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "jacobi test code");
 	pTex = jacobi(200,
 		debugDataTex, // b
 		pTempTex
 	);
 	glad_glPopDebugGroup();
+	*/
 	
 	glad_glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "c Advection");
 	advect(cBegTex, uBegTex, cEndTex);
 	glad_glPopDebugGroup();
-
 	
 	glad_glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "u Advection");
 	advect(uBegTex, uBegTex, wTex);
 	glad_glPopDebugGroup();
-
 
 	static int counter = 0;
 	counter++;
@@ -471,21 +470,13 @@ void renderFrame() {
 
 			GL_C(glUseProgram(forceShader));
 			
-		//	a single application of force should be necessary.
-
-			//	also the spot of the force, should be very tiny.
-
 			GL_C(glUniform1i(fswTexLocation, 0));
 			GL_C(glActiveTexture(GL_TEXTURE0 + 0));
 			GL_C(glBindTexture(GL_TEXTURE_2D, wTex));
 			
 			if (counter == 10) {
-				//float t = (counter - 10) / 30.0f;
-
-				GL_C(glUniform2f(fsPosLocation, 0.5f, 0.5f));
-				
-			   GL_C(glUniform2f(fsForceLocation, +0.0f, +0.1f));
-
+				GL_C(glUniform2f(fsPosLocation, 0.5f, 0.5f));		   
+				GL_C(glUniform2f(fsForceLocation, +0.0f, +0.5f));
 			}
 			else {
 
@@ -562,7 +553,7 @@ void renderFrame() {
 
 	}
 	glad_glPopDebugGroup();
-
+	
 	glad_glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "Rendering");
 	{
 		GL_C(glClearColor(0.0f, 0.0f, 0.0f, 0.0f));
@@ -578,7 +569,8 @@ void renderFrame() {
 	}
 	glad_glPopDebugGroup();
 
-	if (counter <= 30000) {
+	//if (counter <= 30000) 
+	{
 
 		// swap.
 		GLuint temp = uBegTex;
@@ -726,20 +718,13 @@ void setupGraphics(int w, int h) {
         }
 		)");
 
-
-
 	std::string fragDefines = "";
 	fragDefines += std::string("const vec2 delta = vec2(") + std::to_string(1.0f / float(frameW)) + std::string(",") + std::to_string(1.0f / float(frameH)) + ");\n";
-	//fragDefines += std::string("const vec2 delta = vec2(") + std::to_string(1.0 / float(frameW)) + std::string(",") + std::to_string(1.0 / float(frameH)) + ");\n";
-
-
+	
 	std::string vertDefines = "";
 	vertDefines += fragDefines;
 	vertDefines += std::string("vec2 remapPos(vec2 p) { return delta + p * (1.0 - 2.0 * delta); }\n");
-	//vertDefines += std::string("vec2 remapPos(vec2 p) { return p; }\n");
-
-	//vertDefines += std::string("vec2 remapUv(vec2 p) { return 1.5*delta + p * (1.0 - 3.0 * delta); }\n");
-
+	
 	advectShader = LoadNormalShader(
 		vertDefines +
 		fullscreenVs,
@@ -894,9 +879,7 @@ void setupGraphics(int w, int h) {
           fsUv = vsPos.xy;
           gl_Position =  vec4(2.0 * vsPos.xy - vec2(1.0), 0.0, 1.0);
         }
-		)")
-		
-		,
+		)"),
 
 		std::string(R"(
 
