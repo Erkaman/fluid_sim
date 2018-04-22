@@ -667,12 +667,13 @@ void checkFbo() {
 	}
 }
 
-GLuint createFloatTexture(float* data) {
+GLuint createFloatTexture(float* data, GLint internalFormat, GLint format, GLenum type) {
 	GLuint tex;
 
 	GL_C(glGenTextures(1, &tex));
 	GL_C(glBindTexture(GL_TEXTURE_2D, tex));
-	GL_C(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, frameW, frameH, 0, GL_RGBA, GL_FLOAT, data));
+	GL_C(glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, frameW, frameH, 0, format, type, data));
+	
 	GL_C(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR));
 	GL_C(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR));
 
@@ -731,7 +732,7 @@ void setupGraphics(int w, int h) {
 
 				}
 			}
-			cBegTex = createFloatTexture(cData);
+			cBegTex = createFloatTexture(cData, GL_RGBA32F, GL_RGBA, GL_FLOAT);
 
 			float* zeroData = new float[frameW * frameH * 4];
 			for (int y = 0; y < frameH; ++y) {
@@ -743,17 +744,21 @@ void setupGraphics(int w, int h) {
 					zeroData[4 * (frameW * y + x) + 3] = 0.0f;
 				}
 			}
-			uBegTex = createFloatTexture(zeroData);
-			uEndTex = createFloatTexture(zeroData);
-			cEndTex = createFloatTexture(zeroData);
-			wTex = createFloatTexture(zeroData);
-			wTempTex = createFloatTexture(zeroData);
-			wDivergenceTex = createFloatTexture(zeroData);
-			debugTex = createFloatTexture(zeroData);
-			uEndTempTex = createFloatTexture(zeroData);
 
-			pTempTex[0] = createFloatTexture(zeroData);
-			pTempTex[1] = createFloatTexture(zeroData);
+			//	GL_C(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, frameW, frameH, 0, GL_RGBA, GL_FLOAT, data));
+
+
+			uBegTex = createFloatTexture(zeroData, GL_RGBA32F, GL_RGBA, GL_FLOAT);
+			uEndTex = createFloatTexture(zeroData, GL_RGBA32F, GL_RGBA, GL_FLOAT);
+			cEndTex = createFloatTexture(zeroData, GL_RGBA32F, GL_RGBA, GL_FLOAT);
+			wTex = createFloatTexture(zeroData, GL_RGBA32F, GL_RGBA, GL_FLOAT);
+			wTempTex = createFloatTexture(zeroData, GL_RGBA32F, GL_RGBA, GL_FLOAT);
+			wDivergenceTex = createFloatTexture(zeroData, GL_RGBA32F, GL_RGBA, GL_FLOAT);
+			debugTex = createFloatTexture(zeroData, GL_RGBA32F, GL_RGBA, GL_FLOAT);
+			uEndTempTex = createFloatTexture(zeroData, GL_RGBA32F, GL_RGBA, GL_FLOAT);
+
+			pTempTex[0] = createFloatTexture(zeroData, GL_RGBA32F, GL_RGBA, GL_FLOAT);
+			pTempTex[1] = createFloatTexture(zeroData, GL_RGBA32F, GL_RGBA, GL_FLOAT);
 
 			float r = 1.0f / (1.0f);
 			//float r = 1.0f;
@@ -765,8 +770,8 @@ void setupGraphics(int w, int h) {
 			zeroData[4 * (frameW * 10 + 11) + 0] = 5.0f * r;
 			zeroData[4 * (frameW * 10 + 9 ) + 0] = 5.0f * r;
 
-			debugDataTex = createFloatTexture(zeroData);
-			debugDataTex2 = createFloatTexture(zeroData);
+			debugDataTex = createFloatTexture(zeroData, GL_RGBA32F, GL_RGBA, GL_FLOAT);
+			debugDataTex2 = createFloatTexture(zeroData, GL_RGBA32F, GL_RGBA, GL_FLOAT);
 		}
 
 		{
@@ -848,7 +853,7 @@ void setupGraphics(int w, int h) {
           vec4 xT = texture(uxTex, fsUv + vec2(+0, +1) * delta);
           vec4 xB = texture(uxTex, fsUv + vec2(+0, -1) * delta);
 
-          vec4 bC = texture(ubTex, fsUv);
+          vec4 bC = vec4(texture(ubTex, fsUv).x);
 
           FragColor = (xR + xL + xT + xB + vec4(uAlpha.xy, 0.0, 0.0) * bC) * vec4(uBeta.xy, 0.0, 0.0);
 		}
