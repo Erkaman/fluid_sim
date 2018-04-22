@@ -44,6 +44,10 @@ inline void CheckOpenGLError(const char* stmt, const char* fname, int line)
     } while (0)
 #endif
 
+//#define DEBUG_GROUPS 1
+
+
+
 inline char* GetShaderLogInfo(GLuint shader) {
 	GLint len;
 	GLsizei actualLen;
@@ -302,9 +306,6 @@ void InitGlfw() {
 #endif
 
 void RenderFullscreen() {
-	GL_C(glEnableVertexAttribArray((GLuint)0));
-	GL_C(glBindBuffer(GL_ARRAY_BUFFER, fullscreenVertexVbo));
-	GL_C(glVertexAttribPointer((GLuint)0, 2, GL_FLOAT, GL_FALSE, sizeof(FullscreenVertex), (void*)0));
 
 	GL_C(glDrawArrays(GL_TRIANGLES, 0, 6));
 }
@@ -411,6 +412,18 @@ GLuint  jacobi(const int nIter, GLuint bTex, GLuint* tempTex) {
 	return tempTex[(iter + 0) % 2];
 }
 
+void dpush(const char* str) {
+#ifdef DEBUG_GROUPS
+	glad_glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, str);
+#endif
+}
+
+void dpop() {
+#ifdef DEBUG_GROUPS
+	glad_glPopDebugGroup();
+#endif
+}
+
 #define GL_DEBUG_SOURCE_APPLICATION       0x824A
 void renderFrame() {
 
@@ -435,24 +448,31 @@ void renderFrame() {
 
 	GL_C(glViewport(0, 0, frameW, frameH));
 	
-	glad_glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "Clear pTemp Textures");
+	// enable vertex buffer used for full screen rendering. 
+	GL_C(glEnableVertexAttribArray((GLuint)0));
+	GL_C(glBindBuffer(GL_ARRAY_BUFFER, fullscreenVertexVbo));
+	GL_C(glVertexAttribPointer((GLuint)0, 2, GL_FLOAT, GL_FALSE, sizeof(FullscreenVertex), (void*)0));
+	
+	dpush("Clear pTemp Textures");
 	clearTexture(pTempTex[0]);
 	clearTexture(pTempTex[1]);
-	glad_glPopDebugGroup();
+	dpop();
+
 	
-	glad_glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "c Advection");
+
+	dpush("c Advection");
 	advect(cBegTex, uBegTex, cEndTex);
-	glad_glPopDebugGroup();
-	
-	glad_glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "u Advection");
+	dpop();
+
+	dpush("u Advection");
 	advect(uBegTex, uBegTex, wTex);
-	glad_glPopDebugGroup();
+	dpop();
 
 	static int counter = 0;
 	counter++;
 
 	// add force.
-	glad_glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "c Add Force");
+	dpush("c Add Force");
 	{
 		GL_C(glBindFramebuffer(GL_FRAMEBUFFER, fbo0));
 		GL_C(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, 
@@ -488,39 +508,39 @@ void renderFrame() {
 		}
 		GL_C(glBindFramebuffer(GL_FRAMEBUFFER, 0));
 	}
-	glad_glPopDebugGroup();
+	dpop();
 
-	glad_glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "Pressure Gradient Subtract");
+	dpush("Pressure Gradient Subtract");
 	// subtraction of pressure gradient.
 	{
-		glad_glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "Compute divergence of w");
+		dpush("Compute divergence of w");
 		computeDivergence(wTempTex, wDivergenceTex);
-		glad_glPopDebugGroup();
+		dpop();
 
-		glad_glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "Compute pressure");
+		dpush("Compute pressure");
 		// compute pressure.
 		{
 
-			glad_glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "Clear pTemp Textures");
+			dpush("Clear pTemp Textures");
 			clearTexture(pTempTex[0]);
 			clearTexture(pTempTex[1]);
-			glad_glPopDebugGroup();
+			dpop();
 
-			glad_glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "Jacobi");
+			dpush("Jacobi");
 
 			pTex = jacobi(40,
 				wDivergenceTex, // b
 				pTempTex
 			);
 			
-			glad_glPopDebugGroup();
+			dpop();
 
 		}
-		glad_glPopDebugGroup();
+		dpop();
 
 	//	I think maybe the texture sampling coordinates are wrong. try not samplignthe texel center.
 
-		glad_glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "pressure gradient subtraction");
+		dpush("pressure gradient subtraction");
 		{
 			GL_C(glBindFramebuffer(GL_FRAMEBUFFER, fbo0));
 			GL_C(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, uEndTex, 0));
@@ -545,13 +565,13 @@ void renderFrame() {
 			}
 			GL_C(glBindFramebuffer(GL_FRAMEBUFFER, 0));
 		}
-		glad_glPopDebugGroup();
+		dpop();
 
 	}
-	glad_glPopDebugGroup();
+	dpop();
 	
 	/*
-	glad_glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "Boudary Block");
+	dpush("Boudary Block");
 	{
 		GL_C(glBindFramebuffer(GL_FRAMEBUFFER, fbo0));
 		GL_C(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,
@@ -605,11 +625,10 @@ void renderFrame() {
 		}
 		GL_C(glBindFramebuffer(GL_FRAMEBUFFER, 0));
 	}
-	glad_glPopDebugGroup();
+	dpop();
 	*/
 	
-	
-	glad_glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "Rendering");
+	dpush("Rendering");
 	{
 		GL_C(glClearColor(0.0f, 0.0f, 0.0f, 0.0f));
 		GL_C(glClear(GL_COLOR_BUFFER_BIT));
@@ -622,7 +641,7 @@ void renderFrame() {
 
 		RenderFullscreen();
 	}
-	glad_glPopDebugGroup();
+	dpop();
 	
 	//if (counter <= 30000) 
 	{
