@@ -235,6 +235,9 @@ GLuint fsPosLocation;
 GLuint boundaryShader;
 GLuint bsPosOffsetLocation;
 GLuint bsPosSizeLocation;
+GLuint bswTexSizeLocation;
+GLuint bsSampleOffsetLocation;
+GLuint bsScaleLocation;
 
 GLuint fbo0;
 GLuint fbo1;
@@ -253,6 +256,7 @@ GLuint wDivergenceTex;
 GLuint pTempTex[2];
 GLuint pTex;
 GLuint debugTex;
+GLuint uEndTempTex;
 
 GLuint debugDataTex;
 GLuint debugDataTex2;
@@ -282,6 +286,9 @@ void InitGlfw() {
 		exit(EXIT_FAILURE);
 	}
 	glfwMakeContextCurrent(window);
+
+	glfwSetWindowPos(window, 100, 100);
+
 
 	// load GLAD.
 	gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
@@ -549,10 +556,6 @@ void renderFrame() {
 		}
 		glad_glPopDebugGroup();
 
-		glad_glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "debugtex");
-		computeDivergence(uEndTex, debugTex);
-		glad_glPopDebugGroup();
-
 	}
 	glad_glPopDebugGroup();
 	
@@ -561,9 +564,9 @@ void renderFrame() {
 	{
 		GL_C(glBindFramebuffer(GL_FRAMEBUFFER, fbo0));
 		GL_C(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,
-			cEndTex, 0	));
+			uEndTex, 0	));
 		GL_C(glBindFramebuffer(GL_FRAMEBUFFER, 0));
-
+		
 		GL_C(glBindFramebuffer(GL_FRAMEBUFFER, fbo0));
 		{
 			GL_C(glClearColor(0.0f, 0.0f, 0.0f, 0.0f));
@@ -571,33 +574,50 @@ void renderFrame() {
 
 			GL_C(glUseProgram(boundaryShader));
 			
+			GL_C(glUniform1i(bswTexSizeLocation, 1));
+			GL_C(glActiveTexture(GL_TEXTURE0 + 1));
+			GL_C(glBindTexture(GL_TEXTURE_2D, uEndTempTex));
+
 			vec2 delta = vec2(1.0f / float(frameW), 1.0f / float(frameH));
 
-			
+			GL_C(glUniform2f(bsPosOffsetLocation, delta.x, delta.y));
+			GL_C(glUniform2f(bsPosSizeLocation, 1.0 - 2.0 * delta.x, 1.0 - 2.0 * delta.y));
+			GL_C(glUniform2f(bsSampleOffsetLocation, 0.0f, 0.0f));
+			GL_C(glUniform1f(bsScaleLocation, 1.0f));
+
+			RenderFullscreen();
+
+		
 			GL_C(glUniform2f(bsPosOffsetLocation, 0.0f, 0.0f));
 			GL_C(glUniform2f(bsPosSizeLocation, 1.0f, delta.y));
-			
+			GL_C(glUniform2f(bsSampleOffsetLocation, 0.0f, +delta.y));
+			GL_C(glUniform1f(bsScaleLocation, -1.0f));
 			RenderFullscreen();
 			
 			GL_C(glUniform2f(bsPosOffsetLocation, 0.0f, 1.0f - delta.y));
 			GL_C(glUniform2f(bsPosSizeLocation, 1.0f, delta.y));
+			GL_C(glUniform2f(bsSampleOffsetLocation, 0.0f, -delta.y));
+			GL_C(glUniform1f(bsScaleLocation, -1.0f));
 			RenderFullscreen();
 			
 			GL_C(glUniform2f(bsPosOffsetLocation, 0.0f, 0.0f));
 			GL_C(glUniform2f(bsPosSizeLocation, delta.x, 1.0f));
-			RenderFullscreen();
-
-			GL_C(glUniform2f(bsPosOffsetLocation, 1.0f - delta.x, 0.0));
-			GL_C(glUniform2f(bsPosSizeLocation, delta.x, 1.0f));
+			GL_C(glUniform2f(bsSampleOffsetLocation, +delta.x, 0.0f));
+			GL_C(glUniform1f(bsScaleLocation, -1.0f));
 			RenderFullscreen();
 			
-
+			GL_C(glUniform2f(bsPosOffsetLocation, 1.0f - delta.x, 0.0));
+			GL_C(glUniform2f(bsPosSizeLocation, delta.x, 1.0f));
+			GL_C(glUniform2f(bsSampleOffsetLocation, -delta.x, 0.0f));	
+			GL_C(glUniform1f(bsScaleLocation, -1.0f));
+			RenderFullscreen();
 		}
 		GL_C(glBindFramebuffer(GL_FRAMEBUFFER, 0));
 	}
 	glad_glPopDebugGroup();
 	*/
-
+	
+	
 	glad_glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "Rendering");
 	{
 		GL_C(glClearColor(0.0f, 0.0f, 0.0f, 0.0f));
@@ -727,6 +747,7 @@ void setupGraphics(int w, int h) {
 			wTempTex = createFloatTexture(zeroData);
 			wDivergenceTex = createFloatTexture(zeroData);
 			debugTex = createFloatTexture(zeroData);
+			uEndTempTex = createFloatTexture(zeroData);
 
 			pTempTex[0] = createFloatTexture(zeroData);
 			pTempTex[1] = createFloatTexture(zeroData);
@@ -936,15 +957,27 @@ R"(
         in vec2 fsUv;
         out vec4 FragColor;
 
+        uniform sampler2D uwTex;
+	    uniform vec2 uSampleOffset;
+	    uniform float uScale;
+
 		void main()
 		{
-          FragColor = vec4(fsUv.xy, 0.0, 0.0);
+       //   if(uScale > 0.9) {
+
+          FragColor = uScale * texture(uwTex, fsUv + uSampleOffset);
+     //     } else {
+       //      FragColor = vec4( fsUv + uSampleOffset, 0.0, 1.0);
+     //      }
 		}
 		)")
 	);
 	bsPosOffsetLocation = glGetUniformLocation(boundaryShader, "uPosOffset");
 	bsPosSizeLocation = glGetUniformLocation(boundaryShader, "uPosSize");
-	
+	bswTexSizeLocation = glGetUniformLocation(boundaryShader, "uwTex");
+	bsSampleOffsetLocation = glGetUniformLocation(boundaryShader, "uSampleOffset");
+	bsScaleLocation = glGetUniformLocation(boundaryShader, "uScale");
+
 	visShader = LoadNormalShader(
 		
 		std::string(R"(
