@@ -186,8 +186,8 @@ public:
 };
 
 
-const int WINDOW_WIDTH = 256;
-const int WINDOW_HEIGHT = 256;
+const int WINDOW_WIDTH = 256*3;
+const int WINDOW_HEIGHT = 256*3;
 
 GLuint vao;
 
@@ -317,7 +317,7 @@ void clearTexture(GLuint tex) {
 	GL_C(glBindFramebuffer(GL_FRAMEBUFFER, fbo0));
 	{
 		GL_C(glClearColor(0.0f, 0.0f, 0.0f, 0.0f));
-		GL_C(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
+		GL_C(glClear(GL_COLOR_BUFFER_BIT));
 	}
 	GL_C(glBindFramebuffer(GL_FRAMEBUFFER, 0));
 }
@@ -332,7 +332,7 @@ void computeDivergence(GLuint src, GLuint dst) {
 		GL_C(glBindFramebuffer(GL_FRAMEBUFFER, fbo0));
 		{
 			GL_C(glClearColor(0.0f, 0.0f, 0.0f, 0.0f));
-			GL_C(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
+			GL_C(glClear(GL_COLOR_BUFFER_BIT));
 
 			GL_C(glUseProgram(divergenceShader));
 
@@ -354,7 +354,7 @@ void advect(GLuint src, GLuint u, GLuint dst) {
 	GL_C(glBindFramebuffer(GL_FRAMEBUFFER, fbo0));
 	{
 		GL_C(glClearColor(0.0f, 0.0f, 0.0f, 0.0f));
-		GL_C(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
+		GL_C(glClear(GL_COLOR_BUFFER_BIT));
 
 		GL_C(glUseProgram(advectShader));
 
@@ -384,7 +384,7 @@ GLuint  jacobi(const int nIter, GLuint bTex, GLuint* tempTex) {
 		GL_C(glBindFramebuffer(GL_FRAMEBUFFER, fbo0));
 		{
 			GL_C(glClearColor(0.0f, 0.0f, 0.0f, 0.0f));
-			GL_C(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
+			GL_C(glClear(GL_COLOR_BUFFER_BIT));
 
 			GL_C(glUseProgram(jacobiShader));
 
@@ -422,8 +422,8 @@ void renderFrame() {
 	//profiler->Begin(GpuTimeStamp::RENDER_EVERYTHING);
 
 	// setup GL state.
-	GL_C(glEnable(GL_DEPTH_TEST));
-	GL_C(glDepthMask(true));
+	GL_C(glDisable(GL_DEPTH_TEST));
+	GL_C(glDepthMask(false));
 	GL_C(glDisable(GL_BLEND));
 	GL_C(glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE));
 	GL_C(glEnable(GL_CULL_FACE));
@@ -439,15 +439,6 @@ void renderFrame() {
 	clearTexture(pTempTex[0]);
 	clearTexture(pTempTex[1]);
 	glad_glPopDebugGroup();
-
-	/*
-	glad_glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "jacobi test code");
-	pTex = jacobi(200,
-		debugDataTex, // b
-		pTempTex
-	);
-	glad_glPopDebugGroup();
-	*/
 	
 	glad_glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "c Advection");
 	advect(cBegTex, uBegTex, cEndTex);
@@ -475,7 +466,7 @@ void renderFrame() {
 		GL_C(glBindFramebuffer(GL_FRAMEBUFFER, fbo0));
 		{
 			GL_C(glClearColor(0.0f, 0.0f, 0.0f, 0.0f));
-			GL_C(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
+			GL_C(glClear(GL_COLOR_BUFFER_BIT));
 
 			GL_C(glUseProgram(forceShader));
 			
@@ -485,12 +476,12 @@ void renderFrame() {
 			
 			if (counter == 10) {
 				GL_C(glUniform2f(fsPosLocation, 0.5f, 0.5f));		   
-				GL_C(glUniform2f(fsForceLocation, +0.0f, +0.5f));
+				GL_C(glUniform2f(fsForceLocation, +0.0f, +4.5f));
 			}
 			else {
 
 				GL_C(glUniform2f(fsPosLocation, 0.5f, 0.5f));
-				GL_C(glUniform2f(fsForceLocation, 0.0f, 0.5f));
+				GL_C(glUniform2f(fsForceLocation, 0.0f, 4.5f));
 			}
 
 			RenderFullscreen();
@@ -521,7 +512,7 @@ void renderFrame() {
 				wDivergenceTex, // b
 				pTempTex
 			);
-
+			
 			glad_glPopDebugGroup();
 
 		}
@@ -538,7 +529,7 @@ void renderFrame() {
 			GL_C(glBindFramebuffer(GL_FRAMEBUFFER, fbo0));
 			{
 				GL_C(glClearColor(0.0f, 0.0f, 0.0f, 0.0f));
-				GL_C(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
+				GL_C(glClear(GL_COLOR_BUFFER_BIT));
 
 				GL_C(glUseProgram(gradientSubtractionShader));
 				
@@ -570,7 +561,7 @@ void renderFrame() {
 		GL_C(glBindFramebuffer(GL_FRAMEBUFFER, fbo0));
 		{
 			GL_C(glClearColor(0.0f, 0.0f, 0.0f, 0.0f));
-			GL_C(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
+			GL_C(glClear(GL_COLOR_BUFFER_BIT));
 
 			GL_C(glUseProgram(boundaryShader));
 			
@@ -621,7 +612,7 @@ void renderFrame() {
 	glad_glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "Rendering");
 	{
 		GL_C(glClearColor(0.0f, 0.0f, 0.0f, 0.0f));
-		GL_C(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
+		GL_C(glClear(GL_COLOR_BUFFER_BIT));
 
 		GL_C(glUseProgram(visShader));
 
