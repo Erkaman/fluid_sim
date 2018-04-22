@@ -46,8 +46,6 @@ inline void CheckOpenGLError(const char* stmt, const char* fname, int line)
 
 //#define DEBUG_GROUPS 1
 
-
-
 inline char* GetShaderLogInfo(GLuint shader) {
 	GLint len;
 	GLsizei actualLen;
@@ -701,8 +699,8 @@ void setupGraphics(int w, int h) {
 
 	// frameFbo
 	{
-		{
 		
+		{
 			float* cData = new float[frameW * frameH * 4];
 			for (int y = 0; y < frameH; ++y) {
 				for (int x = 0; x < frameW; ++x) {
@@ -771,6 +769,7 @@ void setupGraphics(int w, int h) {
 			debugDataTex = createFloatTexture(zeroData, GL_RGBA32F, GL_RGBA, GL_FLOAT);
 			debugDataTex2 = createFloatTexture(zeroData, GL_RGBA32F, GL_RGBA, GL_FLOAT);
 		}
+		
 
 		{
 			GL_C(glGenFramebuffers(1, &fbo0));
