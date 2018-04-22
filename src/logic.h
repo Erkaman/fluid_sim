@@ -232,6 +232,10 @@ GLuint fswTexLocation;
 GLuint fsForceLocation;
 GLuint fsPosLocation;
 
+GLuint boundaryShader;
+GLuint bsPosOffsetLocation;
+GLuint bsPosSizeLocation;
+
 GLuint fbo0;
 GLuint fbo1;
 
@@ -252,8 +256,6 @@ GLuint debugTex;
 
 GLuint debugDataTex;
 GLuint debugDataTex2;
-
-
 
 void error_callback(int error, const char* description)
 {
@@ -554,6 +556,48 @@ void renderFrame() {
 	}
 	glad_glPopDebugGroup();
 	
+	/*
+	glad_glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "Boudary Block");
+	{
+		GL_C(glBindFramebuffer(GL_FRAMEBUFFER, fbo0));
+		GL_C(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,
+			cEndTex, 0	));
+		GL_C(glBindFramebuffer(GL_FRAMEBUFFER, 0));
+
+		GL_C(glBindFramebuffer(GL_FRAMEBUFFER, fbo0));
+		{
+			GL_C(glClearColor(0.0f, 0.0f, 0.0f, 0.0f));
+			GL_C(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
+
+			GL_C(glUseProgram(boundaryShader));
+			
+			vec2 delta = vec2(1.0f / float(frameW), 1.0f / float(frameH));
+
+			
+			GL_C(glUniform2f(bsPosOffsetLocation, 0.0f, 0.0f));
+			GL_C(glUniform2f(bsPosSizeLocation, 1.0f, delta.y));
+			
+			RenderFullscreen();
+			
+			GL_C(glUniform2f(bsPosOffsetLocation, 0.0f, 1.0f - delta.y));
+			GL_C(glUniform2f(bsPosSizeLocation, 1.0f, delta.y));
+			RenderFullscreen();
+			
+			GL_C(glUniform2f(bsPosOffsetLocation, 0.0f, 0.0f));
+			GL_C(glUniform2f(bsPosSizeLocation, delta.x, 1.0f));
+			RenderFullscreen();
+
+			GL_C(glUniform2f(bsPosOffsetLocation, 1.0f - delta.x, 0.0));
+			GL_C(glUniform2f(bsPosSizeLocation, delta.x, 1.0f));
+			RenderFullscreen();
+			
+
+		}
+		GL_C(glBindFramebuffer(GL_FRAMEBUFFER, 0));
+	}
+	glad_glPopDebugGroup();
+	*/
+
 	glad_glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "Rendering");
 	{
 		GL_C(glClearColor(0.0f, 0.0f, 0.0f, 0.0f));
@@ -568,7 +612,7 @@ void renderFrame() {
 		RenderFullscreen();
 	}
 	glad_glPopDebugGroup();
-
+	
 	//if (counter <= 30000) 
 	{
 
@@ -718,12 +762,20 @@ void setupGraphics(int w, int h) {
         }
 		)");
 
+
+	std::string deltaCode = std::string("const vec2 delta = vec2(") + std::to_string(1.0f / float(frameW)) + std::string(",") + std::to_string(1.0f / float(frameH)) + ");\n";
+
 	std::string fragDefines = "";
-	fragDefines += std::string("const vec2 delta = vec2(") + std::to_string(1.0f / float(frameW)) + std::string(",") + std::to_string(1.0f / float(frameH)) + ");\n";
+	fragDefines += deltaCode;
 	
+	std::string remapPosCode = std::string("vec2 remapPos(vec2 p) { return delta + p * (1.0 - 2.0 * delta); }\n");
+	//std::string remapUvCode = std::string("vec2 remapUv(vec2 p) { return 1.5*delta + p * (1.0 - 3.0 * delta); }\n");
+
 	std::string vertDefines = "";
-	vertDefines += fragDefines;
-	vertDefines += std::string("vec2 remapPos(vec2 p) { return delta + p * (1.0 - 2.0 * delta); }\n");
+	vertDefines += deltaCode;
+	vertDefines += remapPosCode;
+//	vertDefines += remapUvCode;
+
 	
 	advectShader = LoadNormalShader(
 		vertDefines +
@@ -867,6 +919,31 @@ void setupGraphics(int w, int h) {
 	fswTexLocation = glGetUniformLocation(forceShader, "uwTex");
 	fsForceLocation = glGetUniformLocation(forceShader, "uForce");
 	fsPosLocation = glGetUniformLocation(forceShader, "uPos");
+	
+
+	boundaryShader = LoadNormalShader(
+		
+R"(
+	uniform vec2 uPosOffset;
+	uniform vec2 uPosSize;
+
+	vec2 remapPos(vec2 p) { return uPosOffset + p * uPosSize; }
+)" +
+
+		fullscreenVs,
+		deltaCode +
+		std::string(R"(
+        in vec2 fsUv;
+        out vec4 FragColor;
+
+		void main()
+		{
+          FragColor = vec4(fsUv.xy, 0.0, 0.0);
+		}
+		)")
+	);
+	bsPosOffsetLocation = glGetUniformLocation(boundaryShader, "uPosOffset");
+	bsPosSizeLocation = glGetUniformLocation(boundaryShader, "uPosSize");
 	
 	visShader = LoadNormalShader(
 		
