@@ -453,13 +453,6 @@ void renderFrame() {
 	GL_C(glBindBuffer(GL_ARRAY_BUFFER, fullscreenVertexVbo));
 	GL_C(glVertexAttribPointer((GLuint)0, 2, GL_FLOAT, GL_FALSE, sizeof(FullscreenVertex), (void*)0));
 	
-	dpush("Clear pTemp Textures");
-	clearTexture(pTempTex[0]);
-	clearTexture(pTempTex[1]);
-	dpop();
-
-	
-
 	dpush("c Advection");
 	advect(cBegTex, uBegTex, cEndTex);
 	dpop();
@@ -951,7 +944,6 @@ void setupGraphics(int w, int h) {
 	fsForceLocation = glGetUniformLocation(forceShader, "uForce");
 	fsPosLocation = glGetUniformLocation(forceShader, "uPos");
 	
-
 	boundaryShader = LoadNormalShader(
 		
 R"(
