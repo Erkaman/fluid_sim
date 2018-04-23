@@ -149,6 +149,7 @@ GLuint forceShader;
 GLuint fswTexLocation;
 GLuint fsForceLocation;
 GLuint fsPosLocation;
+GLuint fsRadLocation;
 
 GLuint boundaryShader;
 GLuint bsPosOffsetLocation;
@@ -405,6 +406,7 @@ void renderFrame() {
 			int B = 10;
 			int E = 500;
 
+			GL_C(glUniform1f(fsRadLocation, 0.01));
 
 			if (counter >= B && counter <= E) {
 
@@ -861,6 +863,7 @@ void setupGraphics(int w, int h) {
         uniform sampler2D uwTex;
         uniform vec2 uForce;
         uniform vec2 uPos;
+        uniform float uRad;
 
         out vec4 FragColor;
 
@@ -868,8 +871,8 @@ void setupGraphics(int w, int h) {
 		{
           vec2 F = vec2(0.0, 0.0);
           float dist = distance(fsUv, uPos);
-          if(dist < 0.01) {
-            F += ((0.01 - dist)/0.01) * uForce;
+          if(dist < uRad) {
+            F += ((uRad - dist)/uRad) * uForce;
           }
 
           FragColor = vec4(F.xy, 0.0, 0.0) + texture(uwTex, fsUv);
@@ -879,7 +882,8 @@ void setupGraphics(int w, int h) {
 	fswTexLocation = glGetUniformLocation(forceShader, "uwTex");
 	fsForceLocation = glGetUniformLocation(forceShader, "uForce");
 	fsPosLocation = glGetUniformLocation(forceShader, "uPos");
-	
+	fsRadLocation = glGetUniformLocation(forceShader, "uRad");
+
 	boundaryShader = LoadNormalShader(
 		
 R"(
