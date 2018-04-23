@@ -879,11 +879,68 @@ vec3 uColor;
 float uRad;
 
 
-void emit() {
+float hash(float n)
+{
+    return fract(sin(n)*43758.5453123);
+}
 
+float mynoise(in vec2 x)
+{
+    vec2 p = floor(x);
+    vec2 f = fract(x);
+
+    f = f*f*(3.0-2.0*f);
+
+    float n = p.x + p.y*57.0;
+    float res = mix(mix(hash(n+  0.0), hash(n+  1.0), f.x),
+                    mix(hash(n+ 57.0), hash(n+ 58.0), f.x), f.y);
+    return res;
+}
+
+vec3 pal( in float t, in vec3 a, in vec3 b, in vec3 c, in vec3 d )
+{
+    return a + b*cos( 6.28318*(c*t+d) );
+}
+
+
+float quarticIn(float t) {
+  return pow(t, 4.0);
+}
+
+vec3 colorize(float t, vec2 uv) {
+    float p = 0.2;
+     vec3 col = vec3(0.0, 0.0, 0.0);
+ //    t += (-p + 2.0 * p * mynoise(uv * 3000.0  ));
+
+     //col = pal( t, vec3(0.2,0.2,0.2),vec3(0.2,0.2,0.2),vec3(0.3,0.2,0.2),vec3(0.2,0.15,0.90) );
+
+t += float(uCounter) / 200;
+col = 1.2 * pal( t, vec3(0.5,0.5,0.5),vec3(0.5,0.5,0.5),vec3(1.0,1.0,1.0),vec3(0.0,0.33,0.67) );
+
+//col = pal( t, vec3(0.5,0.5,0.5),vec3(0.5,0.5,0.5),vec3(2.0,1.0,0.0),vec3(0.5,0.20,0.25) );
+
+ 
+
+    // col *= ( pow(t, 4.0) );
+ return col;
+}
+
+void emit() {
+ uRad = 0.02f;
+ 
   float dist = distance(fsUv, uPos);
-  F +=  (max(uRad - dist, 0.0)/uRad) * uForce;
-  C +=  (max(uRad - dist, 0.0)/uRad) * uColor;
+  float t = max(uRad - dist, 0.0)/uRad;
+
+ F +=  (t) * uForce;
+ // uColor = vec3(1.0, 0.0, 0.0); 
+  //if(int(uCounter) == 10) {
+  
+   if(uRad - dist > 0.0) C = colorize(t, fsUv);
+ 
+//C +=  t * uColor;
+
+ //}
+
 }
 
 void emitter() {
@@ -893,11 +950,16 @@ void emitter() {
 
 float b;
 
-  b = 0.0 * 3.14 + 0.15f * sin(40.0f * t);
+ b = 0.0 * 3.14 + 0.35f * sin(40.0f * t + 5.4 * hash(float(uCounter)/300.0)  );
+//  b = 4.0f * t + 1.0 * hash(float(uCounter)/300.0) ;
+
   uForce= vec2(9.2 * 60.0f * sin(b), 9.2 * 60.0 *  cos(b));
-  uPos = vec2(0.5, 0.4);
+  uPos = vec2(0.5 + 0.05*sin(float(uCounter)/10.0), 0.4);
   uColor = vec3(0.5f, 0.0, 0.0);
   emit();
+
+//emit();
+
 
 /*
   b = 0.0 * 3.14 + 0.15f * sin(38.0f * t);
@@ -950,6 +1012,8 @@ float b;
           F = vec2(0.0, 0.0);
 
           emitter();
+
+
 
           FragColor = vec4(F.xy, 0.0, 0.0) + texture(uwTex, fsUv);
 		}
@@ -1039,10 +1103,16 @@ R"(
         uniform sampler2D uTex;
 
         out vec4 FragColor;
-
+  
 		void main()
 		{
+/*
+          vec3 mapped = vec3(1.0) - exp(-texture2D(uTex, fsUv).rgb * 2.0);
+          FragColor = vec4(pow(mapped, vec3(1.0 / 2.2)), 1.0);
+*/
+
           FragColor = vec4(pow(texture2D(uTex, fsUv).rgb, vec3(1.0 / 2.2)), 1.0);
+
 		}
 		)")
 	);
