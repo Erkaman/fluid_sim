@@ -8,7 +8,7 @@ int main(int argc, char** argv) {
 	setupGraphics(0, 0);
 
 	int counter = 0;
-
+	
 	while (!glfwWindowShouldClose(window)) {
 
 		glfwPollEvents();
@@ -18,8 +18,6 @@ int main(int argc, char** argv) {
 		renderFrame();
 
 		glfwSwapBuffers(window);
-
-
 	}
 
 	glfwTerminate();

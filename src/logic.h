@@ -734,7 +734,6 @@ void setupGraphics(int w, int h) {
         }
 		)");
 
-
 	std::string deltaCode = std::string("const vec2 delta = vec2(") + std::to_string(1.0f / float(frameW)) + std::string(",") + std::to_string(1.0f / float(frameH)) + ");\n";
 
 	std::string fragDefines = "";
@@ -767,7 +766,7 @@ void setupGraphics(int w, int h) {
 
 		void main()
 		{
-          vec2 tc = fsUv - delta * texture(uuTex, fsUv).xy;
+          vec2 tc = fsUv - delta * (1.0 / 60.0) * texture(uuTex, fsUv).xy;
           FragColor = texture(usTex, tc);
 
 		}
@@ -896,11 +895,14 @@ float b;
 
 
   b = 0.0 * 3.14 + 0.15f * sin(40.0f * t);
-  uForce= vec2(9.2 * sin(b), 9.2 * cos(b));
+  uForce= vec2(9.2 * 60.0f * sin(b), 9.2 * 60.0 *  cos(b));
   uPos = vec2(0.5, 0.4);
   uColor = vec3(0.5f, 0.0, 0.0);
   emit();
 
+
+
+/*
   b = 0.0 * 3.14 + 0.15f * sin(38.0f * t);
   uForce= vec2(9.2 * sin(b), -9.2 * cos(b));
   uPos = vec2(0.5, 0.6);
@@ -918,6 +920,8 @@ float b;
   uPos = vec2(0.6, 0.5);
   uColor = vec3(0.5f, 0.0f, 0.5);
   emit();
+*/
+
 
 /*
   b = 10.0*t;
