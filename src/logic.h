@@ -873,26 +873,32 @@ in vec2 fsUv;
 
 uniform float uCounter;
 
+
+vec2 uForce;
+vec2 uPos;
+vec3 uColor;
+float uRad;
+
+
+void emit() {
+
+  float dist = distance(fsUv, uPos);
+  F +=  (max(uRad - dist, 0.0)/uRad) * uForce;
+  C +=  (max(uRad - dist, 0.0)/uRad) * uColor;
+}
+
 void emitter() {
 
-		float t = 2.0f * float(uCounter) / 500.0f;
+  float t = 2.0f * float(uCounter) / 500.0f;
 
-		float b = 0.0 * 3.14 + 0.15f * sin(40.0f * t);
+  float b = 0.0 * 3.14 + 0.15f * sin(40.0f * t);
 
-		vec2 uForce= vec2(9.2 * sin(b), 9.2 * cos(b));
+  uForce= vec2(9.2 * sin(b), 9.2 * cos(b));
+  uPos = vec2(0.5, 0.5);
+  uColor = vec3(0.5f, 0.0, 0.0);
+  uRad = 0.01f;
 
-		vec2 uPos = vec2(0.5, 0.5);
-
-		vec3 uColor = vec3(0.5f, 0.0, 0.0);
-
-		float uRad = 0.01f;
-
-          float dist = distance(fsUv, uPos);
-
-          F +=  (max(uRad - dist, 0.0)/uRad) * uForce;
-
-          C +=  (max(uRad - dist, 0.0)/uRad) * uColor;
-
+  emit();
 }
 
 
