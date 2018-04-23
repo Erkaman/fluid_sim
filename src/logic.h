@@ -402,14 +402,27 @@ void renderFrame() {
 			GL_C(glActiveTexture(GL_TEXTURE0 + 0));
 			GL_C(glBindTexture(GL_TEXTURE_2D, wTex));
 			
-			if (counter == 10) {
-				GL_C(glUniform2f(fsPosLocation, 0.5f, 0.5f));		   
-				GL_C(glUniform2f(fsForceLocation, +0.0f, +4.5f));
+			int B = 10;
+			int E = 500;
+
+
+			if (counter >= B && counter <= E) {
+
+				float t = float(counter - B) / float(E - B);
+
+
+				float F = 9.2f;
+				float R = 0.1f;
+
+				float rad = 3.14 * 2.0f * t;
+				
+				GL_C(glUniform2f(fsPosLocation,   R * cos(rad) + 0.5f, R*sin(rad) + 0.5f  ));
+				GL_C(glUniform2f(fsForceLocation, F * sin(rad), F*cos(rad) ));
 			}
 			else {
 
 				GL_C(glUniform2f(fsPosLocation, 0.5f, 0.5f));
-				GL_C(glUniform2f(fsForceLocation, 0.0f, 4.5f));
+				GL_C(glUniform2f(fsForceLocation, 0.0f, 0.0f));
 			}
 
 			RenderFullscreen();
@@ -638,6 +651,7 @@ void setupGraphics(int w, int h) {
 					r = fx;
 					g = fy;;
 					b = fmaxf(fx, fy);
+					b = 0.0f;
 
 					cData[4 * (frameW * y + x) + 0] = r;			
 					cData[4 * (frameW * y + x) + 1] = g;			
@@ -711,7 +725,10 @@ void setupGraphics(int w, int h) {
 	std::string fragDefines = "";
 	fragDefines += deltaCode;
 	
-	std::string remapPosCode = std::string("vec2 remapPos(vec2 p) { return delta + p * (1.0 - 2.0 * delta); }\n");
+	//std::string remapPosCode = std::string("vec2 remapPos(vec2 p) { return delta + p * (1.0 - 2.0 * delta); }\n");
+	std::string remapPosCode = std::string("vec2 remapPos(vec2 p) { return p; }\n");
+
+
 	//std::string remapUvCode = std::string("vec2 remapUv(vec2 p) { return 1.5*delta + p * (1.0 - 3.0 * delta); }\n");
 
 	std::string vertDefines = "";
@@ -898,7 +915,7 @@ R"(
 	bswTexSizeLocation = glGetUniformLocation(boundaryShader, "uwTex");
 	bsSampleOffsetLocation = glGetUniformLocation(boundaryShader, "uSampleOffset");
 	bsScaleLocation = glGetUniformLocation(boundaryShader, "uScale");
-
+	
 	visShader = LoadNormalShader(
 		
 		std::string(R"(
@@ -922,12 +939,12 @@ R"(
 
 		void main()
 		{
-          FragColor = vec4(texture2D(uTex, fsUv).rgb, 1.0);
+          FragColor = vec4(pow(texture2D(uTex, fsUv).rgb, vec3(1.0 / 2.2)), 1.0);
 		}
 		)")
 	);
 	vsTexLocation = glGetUniformLocation(visShader, "uTex");
-	
+
 	{
 		std::vector<FullscreenVertex> vertices;
 
