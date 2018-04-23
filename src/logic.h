@@ -893,39 +893,36 @@ void emitter() {
 
 float b;
 
-
   b = 0.0 * 3.14 + 0.15f * sin(40.0f * t);
   uForce= vec2(9.2 * 60.0f * sin(b), 9.2 * 60.0 *  cos(b));
   uPos = vec2(0.5, 0.4);
   uColor = vec3(0.5f, 0.0, 0.0);
   emit();
 
-
-
 /*
   b = 0.0 * 3.14 + 0.15f * sin(38.0f * t);
-  uForce= vec2(9.2 * sin(b), -9.2 * cos(b));
+  uForce= vec2(9.2 * 60.0 * sin(b), -9.2 * 60.0* cos(b));
   uPos = vec2(0.5, 0.6);
   uColor = vec3(0.0f, 0.5f, 0.0f);
   emit();
 
   b = 0.5 * 3.14 + 0.15f * sin(39.0f * t);
-  uForce= vec2(9.2 * sin(b), 9.2 * cos(b));
+  uForce= vec2(9.2 *60.0* sin(b), 9.2 * 60.0*cos(b));
   uPos = vec2(0.4, 0.5);
   uColor = vec3(0.0f, 0.0, 0.5);
   emit();
 
   b = 0.5 * 3.14 + 0.15f * sin(41.0f * t);
-  uForce= vec2(-9.2 * sin(b), 9.2 * cos(b));
+  uForce= vec2(-9.2 *60.0* sin(b), 9.2 * 60.0*cos(b));
   uPos = vec2(0.6, 0.5);
   uColor = vec3(0.5f, 0.0f, 0.5);
   emit();
-*/
 
 
-/*
+
+
   b = 10.0*t;
-  uForce= vec2(20.2 * sin(b), 20.2 * cos(b));
+  uForce= vec2(20.2 *60.0* sin(b), 20.2 * 60.0*cos(b));
   uPos = vec2(0.5, 0.5);
   uColor = vec3(0.4f, 0.4, 0.4);
   emit();
@@ -983,7 +980,7 @@ float b;
 		)")
 	);
 	accTexLocation = glGetUniformLocation(addColorShader, "ucTex");
-	acCounterLocation = glGetUniformLocation(forceShader, "uCounter");
+	acCounterLocation = glGetUniformLocation(addColorShader, "uCounter");
 
 
 	boundaryShader = LoadNormalShader(
