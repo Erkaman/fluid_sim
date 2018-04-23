@@ -382,39 +382,6 @@ void renderFrame() {
 	static int counter = 0;
 	counter++;
 
-	float rad = 0.01f;
-
-	float posX;
-	float posY;
-
-	float forceX;
-	float forceY;
-
-	float ar;
-	float ag;	
-	float ab;
-	
-	{
-		float t = 2.0f * float(counter) / 500.0f;
-
-		float F = 9.2f;
-		
-
-		float b = 0.0 * 3.14 + 0.15f * sin(40.0f * t);
-
-		forceX = F * sin(b);
-		forceY = F * cos(b);
-
-		posY = 0.5f;
-		posX = 0.5;
-
-		ar = 0.5f;
-		ag = 0.0f;
-		ab = 0.0f;
-
-		rad = 0.01f;
-	}
-
 	// add force.
 	dpush("c Add Force");
 	{
@@ -466,8 +433,7 @@ void renderFrame() {
 			GL_C(glActiveTexture(GL_TEXTURE0 + 0));
 			GL_C(glBindTexture(GL_TEXTURE_2D, cTempTex));
 
-			
-			
+					
 			GL_C(glUniform1f(acCounterLocation, float(counter)));
 
 			RenderFullscreen();
@@ -911,8 +877,6 @@ void emitter() {
 
 		float t = 2.0f * float(uCounter) / 500.0f;
 
-		
-
 		float b = 0.0 * 3.14 + 0.15f * sin(40.0f * t);
 
 		vec2 uForce= vec2(9.2 * sin(b), 9.2 * cos(b));
@@ -946,13 +910,10 @@ void emitter() {
 
         out vec4 FragColor;
 
-
 		void main()
 		{
           F = vec2(0.0, 0.0);
 
-      //    float dist = distance(fsUv, uPos);
-      //    F +=  (max(uRad - dist, 0.0)/uRad) * uForce;
           emitter();
 
           FragColor = vec4(F.xy, 0.0, 0.0) + texture(uwTex, fsUv);
@@ -970,11 +931,7 @@ void emitter() {
 		std::string(R"(
 
         uniform sampler2D ucTex;
-/*
-        uniform vec2 uPos;
-        uniform vec3 uColor;
-        uniform float uRad;
-*/
+
         out vec4 FragColor;
 
 
@@ -982,9 +939,7 @@ void emitter() {
 		{
           C = vec3(0.0, 0.0, 0.0);
 
-      //    float dist = distance(fsUv, uPos);     
-     //     C +=  (max(uRad - dist, 0.0)/uRad) * uColor;
-     emitter();
+          emitter();
           FragColor = vec4(C.rgb, 0.0) + texture(ucTex, fsUv);
 		}
 		)")
