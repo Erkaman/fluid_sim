@@ -44,7 +44,7 @@ inline void CheckOpenGLError(const char* stmt, const char* fname, int line)
     } while (0)
 #endif
 
-//#define DEBUG_GROUPS 1
+#define DEBUG_GROUPS 1
 
 inline char* GetShaderLogInfo(GLuint shader) {
 	GLint len;
@@ -175,6 +175,7 @@ GLuint uEndTex;
 // color.
 GLuint cBegTex;
 GLuint cEndTex;
+GLuint cTempTex;
 
 GLuint wTex;
 GLuint wTempTex;
@@ -376,7 +377,7 @@ void renderFrame() {
 	GL_C(glVertexAttribPointer((GLuint)0, 2, GL_FLOAT, GL_FALSE, sizeof(FullscreenVertex), (void*)0));
 	
 	dpush("c Advection");
-	advect(cBegTex, uBegTex, cEndTex);
+	advect(cBegTex, uBegTex, cTempTex);
 	dpop();
 
 	dpush("u Advection");
@@ -386,7 +387,6 @@ void renderFrame() {
 	static int counter = 0;
 	counter++;
 
-	int B = 10;
 	int E = 500;
 	float RAD = 0.01f;
 	float posX = 0.5f;
@@ -395,21 +395,45 @@ void renderFrame() {
 	float forceX = 0.0f;
 	float forceY = 0.0f;
 
-	if (counter >= B && counter <= E) {
+	float ar = 0.0f;
+	float ag = 0.0f;
+	float ab = 0.0f;
 
-		float t = float(counter - B) / float(E - B);
+	{
+
+		float t = 2.0f * float(counter) / float(E);
 
 		float F = 9.2f;
-		float R = 0.1f;
+		float R = 0.1f + t * 0.3 * 0.0f;
 
 		float rad = 3.14 * 2.0f * t;
 
 		posX = R * cos(rad) + 0.5f;
 		posY = R * sin(rad) + 0.5f;
 
-		forceX = F * sin(rad);
-		forceY = F * cos(rad);
+		
+		//forceX = F * sin(rad);
+		//forceY = F * cos(rad);
+		
+
+		float b = 0.0 * 3.14 + 0.15f * sin(40.0f * t);
+		forceX = F * sin(b);
+		forceY = F * cos(b);
+
+		posY = 0.5f;
+		posX = 0.01 * cos(rad) + 0.5f;
+		posX = 0.5;
+
+		ar = 0.5f;
 	}
+
+	/*
+	posX = 0.5f;
+	posY = 0.5f;
+	
+	forceX = 0.0f;
+	forceY = 0.2f;
+	*/
 
 
 	// add force.
@@ -443,14 +467,13 @@ void renderFrame() {
 	}
 	dpop();
 
-	/*
-	// add force.
-	dpush("c Add Color");
+	
+	// add color.
+	dpush("Add Color");
 	{
-		ioioj;
 		GL_C(glBindFramebuffer(GL_FRAMEBUFFER, fbo0));
 		GL_C(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,
-			wTempTex,
+			cEndTex,
 			//uEndTex,	
 			0));
 		GL_C(glBindFramebuffer(GL_FRAMEBUFFER, 0));
@@ -460,42 +483,27 @@ void renderFrame() {
 			GL_C(glClearColor(0.0f, 0.0f, 0.0f, 0.0f));
 			GL_C(glClear(GL_COLOR_BUFFER_BIT));
 
-			GL_C(glUseProgram(forceShader));
+			GL_C(glUseProgram(addColorShader));
 
-			GL_C(glUniform1i(fswTexLocation, 0));
+			GL_C(glUniform1i(accTexLocation, 0));
 			GL_C(glActiveTexture(GL_TEXTURE0 + 0));
-			GL_C(glBindTexture(GL_TEXTURE_2D, wTex));
+			GL_C(glBindTexture(GL_TEXTURE_2D, cTempTex));
 
-			int B = 10;
-			int E = 500;
-
-			GL_C(glUniform1f(fsRadLocation, 0.01));
-
-			if (counter >= B && counter <= E) {
-
-				float t = float(counter - B) / float(E - B);
-
-				float F = 9.2f;
-				float R = 0.1f;
-
-				float rad = 3.14 * 2.0f * t;
-
-				GL_C(glUniform2f(fsPosLocation, R * cos(rad) + 0.5f, R*sin(rad) + 0.5f));
-				GL_C(glUniform2f(fsForceLocation, F * sin(rad), F*cos(rad)));
-			}
-			else {
-
-				GL_C(glUniform2f(fsPosLocation, 0.5f, 0.5f));
-				GL_C(glUniform2f(fsForceLocation, 0.0f, 0.0f));
-			}
-
+			
+			//GL_C(glUniform1f(fsRadLocation, RAD));
+			//GL_C(glUniform2f(fsPosLocation, posX, posY));
+			//GL_C(glUniform2f(fsForceLocation, forceX, forceY));
+			
+			GL_C(glUniform1f(acRadLocation, RAD));
+			GL_C(glUniform2f(acPosLocation, posX, posY));
+			GL_C(glUniform3f(acColorLocation, ar, ag, ab));
+			
 			RenderFullscreen();
 		}
 		GL_C(glBindFramebuffer(GL_FRAMEBUFFER, 0));
 	}
 	dpop();
-	*/
-
+	
 	dpush("Pressure Gradient Subtract");
 	// subtraction of pressure gradient.
 	{
@@ -725,7 +733,6 @@ void setupGraphics(int w, int h) {
 
 				}
 			}
-			cBegTex = createFloatTexture(cData, GL_RGBA32F, GL_RGBA, GL_FLOAT);
 
 			float* zeroData = new float[frameW * frameH * 4];
 			for (int y = 0; y < frameH; ++y) {
@@ -737,12 +744,17 @@ void setupGraphics(int w, int h) {
 					zeroData[4 * (frameW * y + x) + 3] = 0.0f;
 				}
 			}
+
+			cBegTex = createFloatTexture(zeroData, GL_RGBA32F, GL_RGBA, GL_FLOAT);
+
 			
 			//	GL_C(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, frameW, frameH, 0, GL_RGBA, GL_FLOAT, data));
 
 			uBegTex = createFloatTexture(zeroData, GL_RG32F, GL_RG, GL_FLOAT);
 			uEndTex = createFloatTexture(zeroData, GL_RG32F, GL_RG, GL_FLOAT);
 			cEndTex = createFloatTexture(zeroData, GL_RGBA32F, GL_RGBA, GL_FLOAT);
+			cTempTex = createFloatTexture(zeroData, GL_RGBA32F, GL_RGBA, GL_FLOAT);
+
 			wTex = createFloatTexture(zeroData, GL_RG32F, GL_RG, GL_FLOAT);
 			wTempTex = createFloatTexture(zeroData, GL_RG32F, GL_RG, GL_FLOAT);
 			wDivergenceTex = createFloatTexture(zeroData, GL_RG32F, GL_RG, GL_FLOAT);
