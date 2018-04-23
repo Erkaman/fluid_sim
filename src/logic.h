@@ -147,16 +147,11 @@ GLuint gsswTexLocation;
 
 GLuint forceShader;
 GLuint fswTexLocation;
-GLuint fsForceLocation;
-GLuint fsPosLocation;
-GLuint fsRadLocation;
+GLuint fsCounterLocation;
 
 GLuint addColorShader;
 GLuint accTexLocation;
-GLuint acPosLocation;
-GLuint acColorLocation;
-GLuint acRadLocation;
-
+GLuint acCounterLocation;
 
 GLuint boundaryShader;
 GLuint bsPosOffsetLocation;
@@ -441,10 +436,8 @@ void renderFrame() {
 			GL_C(glActiveTexture(GL_TEXTURE0 + 0));
 			GL_C(glBindTexture(GL_TEXTURE_2D, wTex));
 		
-			GL_C(glUniform1f(fsRadLocation, rad));
-			GL_C(glUniform2f(fsPosLocation, posX, posY));		
-			GL_C(glUniform2f(fsForceLocation, forceX, forceY));
-			
+			GL_C(glUniform1f(fsCounterLocation, float(counter)));
+
 			RenderFullscreen();
 		}
 		GL_C(glBindFramebuffer(GL_FRAMEBUFFER, 0));
@@ -474,14 +467,9 @@ void renderFrame() {
 			GL_C(glBindTexture(GL_TEXTURE_2D, cTempTex));
 
 			
-			//GL_C(glUniform1f(fsRadLocation, RAD));
-			//GL_C(glUniform2f(fsPosLocation, posX, posY));
-			//GL_C(glUniform2f(fsForceLocation, forceX, forceY));
 			
-			GL_C(glUniform1f(acRadLocation, rad));
-			GL_C(glUniform2f(acPosLocation, posX, posY));
-			GL_C(glUniform3f(acColorLocation, ar, ag, ab));
-			
+			GL_C(glUniform1f(acCounterLocation, float(counter)));
+
 			RenderFullscreen();
 		}
 		GL_C(glBindFramebuffer(GL_FRAMEBUFFER, 0));
@@ -911,73 +899,99 @@ void setupGraphics(int w, int h) {
 	gsspTexLocation = glGetUniformLocation(gradientSubtractionShader, "upTex");
 	gsswTexLocation = glGetUniformLocation(gradientSubtractionShader, "uwTex");
 
+	std::string emitterCode = std::string(R"(
+
+vec2 F;
+vec3 C;
+in vec2 fsUv;
+
+uniform float uCounter;
+
+void emitter() {
+
+		float t = 2.0f * float(uCounter) / 500.0f;
+
+		
+
+		float b = 0.0 * 3.14 + 0.15f * sin(40.0f * t);
+
+		vec2 uForce= vec2(9.2 * sin(b), 9.2 * cos(b));
+
+		vec2 uPos = vec2(0.5, 0.5);
+
+		vec3 uColor = vec3(0.5f, 0.0, 0.0);
+
+		float uRad = 0.01f;
+
+          float dist = distance(fsUv, uPos);
+
+          F +=  (max(uRad - dist, 0.0)/uRad) * uForce;
+
+          C +=  (max(uRad - dist, 0.0)/uRad) * uColor;
+
+}
+
+
+)");
+
 	forceShader = LoadNormalShader(
 		vertDefines +
 		fullscreenVs,
 		fragDefines +
+		emitterCode +
 		std::string(R"(
 
-        in vec2 fsUv;
 
         uniform sampler2D uwTex;
-        uniform vec2 uForce;
-        uniform vec2 uPos;
-        uniform float uRad;
 
         out vec4 FragColor;
 
-        vec2 F;
 
 		void main()
 		{
           F = vec2(0.0, 0.0);
 
-          float dist = distance(fsUv, uPos);
-          F +=  (max(uRad - dist, 0.0)/uRad) * uForce;
-
+      //    float dist = distance(fsUv, uPos);
+      //    F +=  (max(uRad - dist, 0.0)/uRad) * uForce;
+          emitter();
 
           FragColor = vec4(F.xy, 0.0, 0.0) + texture(uwTex, fsUv);
 		}
 		)")
 	);
 	fswTexLocation = glGetUniformLocation(forceShader, "uwTex");
-	fsForceLocation = glGetUniformLocation(forceShader, "uForce");
-	fsPosLocation = glGetUniformLocation(forceShader, "uPos");
-	fsRadLocation = glGetUniformLocation(forceShader, "uRad");
+	fsCounterLocation = glGetUniformLocation(forceShader, "uCounter");
 	
     addColorShader = LoadNormalShader(
 		vertDefines +
 		fullscreenVs,
 		fragDefines +
+		emitterCode +
 		std::string(R"(
 
-        in vec2 fsUv;
-
         uniform sampler2D ucTex;
-
+/*
         uniform vec2 uPos;
         uniform vec3 uColor;
         uniform float uRad;
-
+*/
         out vec4 FragColor;
 
-        vec3 C;
 
 		void main()
 		{
           C = vec3(0.0, 0.0, 0.0);
 
-          float dist = distance(fsUv, uPos);     
-          C +=  (max(uRad - dist, 0.0)/uRad) * uColor;
-     
+      //    float dist = distance(fsUv, uPos);     
+     //     C +=  (max(uRad - dist, 0.0)/uRad) * uColor;
+     emitter();
           FragColor = vec4(C.rgb, 0.0) + texture(ucTex, fsUv);
 		}
 		)")
 	);
 	accTexLocation = glGetUniformLocation(addColorShader, "ucTex");
-	acPosLocation = glGetUniformLocation(addColorShader, "uPos");
-	acColorLocation = glGetUniformLocation(addColorShader, "uColor");
-	acRadLocation = glGetUniformLocation(addColorShader, "uRad");
+	acCounterLocation = glGetUniformLocation(forceShader, "uCounter");
+
 
 	boundaryShader = LoadNormalShader(
 		
