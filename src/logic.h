@@ -104,92 +104,8 @@ inline GLuint LoadNormalShader(const std::string& vsSource, const std::string& f
 	return shader;
 }
 
-class vec2 {
-public:
-	float x, y;
-
-	vec2(float x, float y) { this->x = x; this->y = y; }
-
-	vec2() { this->x = this->y = 0; }
-};
-
-//
-//
-// Begin vec3.
-//
-//
-
-class vec3 {
-public:
-	float x, y, z;
-
-	vec3(float x, float y, float z) { this->x = x; this->y = y; this->z = z; }
-
-	vec3() { this->x = this->y = this->z = 0; }
-
-	vec3& operator+=(const vec3& b) { (*this) = (*this) + b; return (*this); }
-
-	friend vec3 operator-(const vec3& a, const vec3& b) { return vec3(a.x - b.x, a.y - b.y, a.z - b.z); }
-	friend vec3 operator+(const vec3& a, const vec3& b) { return vec3(a.x + b.x, a.y + b.y, a.z + b.z); }
-	friend vec3 operator*(const float s, const vec3& a) { return vec3(s * a.x, s * a.y, s * a.z); }
-	friend vec3 operator*(const vec3& a, const float s) { return s * a; }
-
-	static float length(const vec3& a) { return sqrt(vec3::dot(a, a)); }
-
-	// dot product.
-	static float dot(const vec3& a, const vec3& b) { return a.x*b.x + a.y*b.y + a.z*b.z; }
-
-	static float distance(const vec3& a, const vec3& b) { return length(a - b); }
-	static vec3 normalize(const vec3& a) { return (1.0f / vec3::length(a)) * a; }
-
-	static vec3 mix(const vec3& x, const vec3& y, const float a) { return x * (1.0f - a) + y * a; }
-
-
-	// cross product.
-	static vec3 cross(const vec3& a, const vec3& b) { return vec3(a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x); }
-
-	//
-	// Rotate the vector 'v' around the 'axis' for 'theta' degrees.
-	//
-	static vec3 rotate(const vec3& v, const float theta, const vec3& axis) {
-		vec3 k = vec3::normalize(axis); // normalize for good measure.
-		return v * cos(theta) + vec3::cross(k, v)* sin(theta) + (k * vec3::dot(k, v)) * (1.0f - cos(theta));
-	}
-
-};
-
-class vec4 {
-public:
-	float x, y, z, w;
-
-	vec4(float x, float y, float z, float w) { this->x = x; this->y = y; this->z = z; this->w = w; }
-
-	vec4() { this->x = this->y = this->z = 0; this->w = 0; }
-
-	vec4& operator+=(const vec4& b) { (*this) = (*this) + b; return (*this); }
-
-	friend vec4 operator-(const vec4& a, const vec4& b) { return vec4(a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w); }
-	friend vec4 operator+(const vec4& a, const vec4& b) { return vec4(a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w); }
-	friend vec4 operator*(const float s, const vec4& a) { return vec4(s * a.x, s * a.y, s * a.z, s * a.w); }
-	friend vec4 operator*(const vec4& a, const float s) { return s * a; }
-	/*
-	static float length(const vec3& a) { return sqrt(vec3::dot(a, a)); }
-
-	// dot product.
-	static float dot(const vec3& a, const vec3& b) { return a.x*b.x + a.y*b.y + a.z*b.z; }
-
-	static float distance(const vec3& a, const vec3& b) { return length(a - b); }
-	static vec3 normalize(const vec3& a) { return (1.0f / vec3::length(a)) * a; }
-	*/
-	//
-	// Rotate the vector 'v' around the 'axis' for 'theta' degrees.
-	// This is basically Rodrigues' rotation formula.
-	//
-};
-
-
-const int WINDOW_WIDTH = 256*3;
-const int WINDOW_HEIGHT = 256*3;
+const int WINDOW_WIDTH = 256*4;
+const int WINDOW_HEIGHT = 256*4;
 
 GLuint vao;
 
@@ -289,7 +205,7 @@ void InitGlfw() {
 	}
 	glfwMakeContextCurrent(window);
 
-	glfwSetWindowPos(window, 100, 100);
+	glfwSetWindowPos(window, 50, 50);
 
 
 	// load GLAD.
@@ -461,6 +377,7 @@ void renderFrame() {
 
 	static int counter = 0;
 	counter++;
+
 
 	// add force.
 	dpush("c Add Force");
@@ -934,8 +851,8 @@ void setupGraphics(int w, int h) {
 		{
           vec2 F = vec2(0.0, 0.0);
           float dist = distance(fsUv, uPos);
-          if(dist < 0.05) {
-            F += ((0.05 - dist)/0.05) * uForce;
+          if(dist < 0.01) {
+            F += ((0.01 - dist)/0.01) * uForce;
           }
 
           FragColor = vec4(F.xy, 0.0, 0.0) + texture(uwTex, fsUv);
