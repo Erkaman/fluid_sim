@@ -945,10 +945,10 @@ void setupGraphics(int w, int h) {
 		void main()
 		{
           vec2 F = vec2(0.0, 0.0);
+
           float dist = distance(fsUv, uPos);
-          if(dist < uRad) {
-            F += ((uRad - dist)/uRad) * uForce;
-          }
+          F +=  (max(uRad - dist, 0.0)/uRad) * uForce;
+
 
           FragColor = vec4(F.xy, 0.0, 0.0) + texture(uwTex, fsUv);
 		}
@@ -978,11 +978,10 @@ void setupGraphics(int w, int h) {
 		void main()
 		{
           vec3 C = vec3(0.0, 0.0, 0.0);
-          float dist = distance(fsUv, uPos);
-          if(dist < uRad) {
-            C += ((uRad - dist)/uRad) * uColor;
-          }
 
+          float dist = distance(fsUv, uPos);     
+          C +=  (max(uRad - dist, 0.0)/uRad) * uColor;
+     
           FragColor = vec4(C.rgb, 0.0) + texture(ucTex, fsUv);
 		}
 		)")
