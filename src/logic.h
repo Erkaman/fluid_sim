@@ -151,6 +151,13 @@ GLuint fsForceLocation;
 GLuint fsPosLocation;
 GLuint fsRadLocation;
 
+GLuint addColorShader;
+GLuint accTexLocation;
+GLuint acPosLocation;
+GLuint acColorLocation;
+GLuint acRadLocation;
+
+
 GLuint boundaryShader;
 GLuint bsPosOffsetLocation;
 GLuint bsPosSizeLocation;
@@ -379,16 +386,39 @@ void renderFrame() {
 	static int counter = 0;
 	counter++;
 
+	int B = 10;
+	int E = 500;
+	float RAD = 0.01f;
+	float posX = 0.5f;
+	float posY = 0.5f;;
+
+	float forceX = 0.0f;
+	float forceY = 0.0f;
+
+	if (counter >= B && counter <= E) {
+
+		float t = float(counter - B) / float(E - B);
+
+		float F = 9.2f;
+		float R = 0.1f;
+
+		float rad = 3.14 * 2.0f * t;
+
+		posX = R * cos(rad) + 0.5f;
+		posY = R * sin(rad) + 0.5f;
+
+		forceX = F * sin(rad);
+		forceY = F * cos(rad);
+	}
+
 
 	// add force.
 	dpush("c Add Force");
 	{
 		GL_C(glBindFramebuffer(GL_FRAMEBUFFER, fbo0));
-		GL_C(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, 
-			
+		GL_C(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, 		
 			wTempTex,
-			//uEndTex,
-			
+			//uEndTex,	
 			0));
 		GL_C(glBindFramebuffer(GL_FRAMEBUFFER, 0));
 
@@ -402,7 +432,40 @@ void renderFrame() {
 			GL_C(glUniform1i(fswTexLocation, 0));
 			GL_C(glActiveTexture(GL_TEXTURE0 + 0));
 			GL_C(glBindTexture(GL_TEXTURE_2D, wTex));
+		
+			GL_C(glUniform1f(fsRadLocation, RAD));
+			GL_C(glUniform2f(fsPosLocation, posX, posY));		
+			GL_C(glUniform2f(fsForceLocation, forceX, forceY));
 			
+			RenderFullscreen();
+		}
+		GL_C(glBindFramebuffer(GL_FRAMEBUFFER, 0));
+	}
+	dpop();
+
+	/*
+	// add force.
+	dpush("c Add Color");
+	{
+		ioioj;
+		GL_C(glBindFramebuffer(GL_FRAMEBUFFER, fbo0));
+		GL_C(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,
+			wTempTex,
+			//uEndTex,	
+			0));
+		GL_C(glBindFramebuffer(GL_FRAMEBUFFER, 0));
+
+		GL_C(glBindFramebuffer(GL_FRAMEBUFFER, fbo0));
+		{
+			GL_C(glClearColor(0.0f, 0.0f, 0.0f, 0.0f));
+			GL_C(glClear(GL_COLOR_BUFFER_BIT));
+
+			GL_C(glUseProgram(forceShader));
+
+			GL_C(glUniform1i(fswTexLocation, 0));
+			GL_C(glActiveTexture(GL_TEXTURE0 + 0));
+			GL_C(glBindTexture(GL_TEXTURE_2D, wTex));
+
 			int B = 10;
 			int E = 500;
 
@@ -412,14 +475,13 @@ void renderFrame() {
 
 				float t = float(counter - B) / float(E - B);
 
-
 				float F = 9.2f;
 				float R = 0.1f;
 
 				float rad = 3.14 * 2.0f * t;
-				
-				GL_C(glUniform2f(fsPosLocation,   R * cos(rad) + 0.5f, R*sin(rad) + 0.5f  ));
-				GL_C(glUniform2f(fsForceLocation, F * sin(rad), F*cos(rad) ));
+
+				GL_C(glUniform2f(fsPosLocation, R * cos(rad) + 0.5f, R*sin(rad) + 0.5f));
+				GL_C(glUniform2f(fsForceLocation, F * sin(rad), F*cos(rad)));
 			}
 			else {
 
@@ -432,6 +494,7 @@ void renderFrame() {
 		GL_C(glBindFramebuffer(GL_FRAMEBUFFER, 0));
 	}
 	dpop();
+	*/
 
 	dpush("Pressure Gradient Subtract");
 	// subtraction of pressure gradient.
@@ -883,6 +946,39 @@ void setupGraphics(int w, int h) {
 	fsForceLocation = glGetUniformLocation(forceShader, "uForce");
 	fsPosLocation = glGetUniformLocation(forceShader, "uPos");
 	fsRadLocation = glGetUniformLocation(forceShader, "uRad");
+	
+    addColorShader = LoadNormalShader(
+		vertDefines +
+		fullscreenVs,
+		fragDefines +
+		std::string(R"(
+
+        in vec2 fsUv;
+
+        uniform sampler2D ucTex;
+
+        uniform vec2 uPos;
+        uniform vec3 uColor;
+        uniform float uRad;
+
+        out vec4 FragColor;
+
+		void main()
+		{
+          vec3 C = vec3(0.0, 0.0, 0.0);
+          float dist = distance(fsUv, uPos);
+          if(dist < uRad) {
+            C += ((uRad - dist)/uRad) * uColor;
+          }
+
+          FragColor = vec4(C.rgb, 0.0) + texture(ucTex, fsUv);
+		}
+		)")
+	);
+	accTexLocation = glGetUniformLocation(addColorShader, "ucTex");
+	acPosLocation = glGetUniformLocation(addColorShader, "uPos");
+	acColorLocation = glGetUniformLocation(addColorShader, "uColor");
+	acRadLocation = glGetUniformLocation(addColorShader, "uRad");
 
 	boundaryShader = LoadNormalShader(
 		
