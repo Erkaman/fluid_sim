@@ -387,54 +387,38 @@ void renderFrame() {
 	static int counter = 0;
 	counter++;
 
-	int E = 500;
-	float RAD = 0.01f;
-	float posX = 0.5f;
-	float posY = 0.5f;;
+	float rad = 0.01f;
 
-	float forceX = 0.0f;
-	float forceY = 0.0f;
+	float posX;
+	float posY;
 
-	float ar = 0.0f;
-	float ag = 0.0f;
-	float ab = 0.0f;
+	float forceX;
+	float forceY;
 
+	float ar;
+	float ag;	
+	float ab;
+	
 	{
-
-		float t = 2.0f * float(counter) / float(E);
+		float t = 2.0f * float(counter) / 500.0f;
 
 		float F = 9.2f;
-		float R = 0.1f + t * 0.3 * 0.0f;
-
-		float rad = 3.14 * 2.0f * t;
-
-		posX = R * cos(rad) + 0.5f;
-		posY = R * sin(rad) + 0.5f;
-
-		
-		//forceX = F * sin(rad);
-		//forceY = F * cos(rad);
 		
 
 		float b = 0.0 * 3.14 + 0.15f * sin(40.0f * t);
+
 		forceX = F * sin(b);
 		forceY = F * cos(b);
 
 		posY = 0.5f;
-		posX = 0.01 * cos(rad) + 0.5f;
 		posX = 0.5;
 
 		ar = 0.5f;
+		ag = 0.0f;
+		ab = 0.0f;
+
+		rad = 0.01f;
 	}
-
-	/*
-	posX = 0.5f;
-	posY = 0.5f;
-	
-	forceX = 0.0f;
-	forceY = 0.2f;
-	*/
-
 
 	// add force.
 	dpush("c Add Force");
@@ -457,7 +441,7 @@ void renderFrame() {
 			GL_C(glActiveTexture(GL_TEXTURE0 + 0));
 			GL_C(glBindTexture(GL_TEXTURE_2D, wTex));
 		
-			GL_C(glUniform1f(fsRadLocation, RAD));
+			GL_C(glUniform1f(fsRadLocation, rad));
 			GL_C(glUniform2f(fsPosLocation, posX, posY));		
 			GL_C(glUniform2f(fsForceLocation, forceX, forceY));
 			
@@ -494,7 +478,7 @@ void renderFrame() {
 			//GL_C(glUniform2f(fsPosLocation, posX, posY));
 			//GL_C(glUniform2f(fsForceLocation, forceX, forceY));
 			
-			GL_C(glUniform1f(acRadLocation, RAD));
+			GL_C(glUniform1f(acRadLocation, rad));
 			GL_C(glUniform2f(acPosLocation, posX, posY));
 			GL_C(glUniform3f(acColorLocation, ar, ag, ab));
 			
@@ -942,9 +926,11 @@ void setupGraphics(int w, int h) {
 
         out vec4 FragColor;
 
+        vec2 F;
+
 		void main()
 		{
-          vec2 F = vec2(0.0, 0.0);
+          F = vec2(0.0, 0.0);
 
           float dist = distance(fsUv, uPos);
           F +=  (max(uRad - dist, 0.0)/uRad) * uForce;
@@ -975,9 +961,11 @@ void setupGraphics(int w, int h) {
 
         out vec4 FragColor;
 
+        vec3 C;
+
 		void main()
 		{
-          vec3 C = vec3(0.0, 0.0, 0.0);
+          C = vec3(0.0, 0.0, 0.0);
 
           float dist = distance(fsUv, uPos);     
           C +=  (max(uRad - dist, 0.0)/uRad) * uColor;
