@@ -916,31 +916,13 @@ vec3 colorize(float t, vec2 uv) {
  return col;
 }
 
-void emit() {
- uRad = 0.02f;
- 
-  float dist = distance(fsUv, uPos);
-  float t = max(uRad - dist, 0.0)/uRad;
-
- F +=  (t) * uForce;
- // uColor = vec3(1.0, 0.0, 0.0); 
-  //if(int(uCounter) == 10) {
-  
-   if(uRad - dist > 0.0) C = colorize(t, fsUv);
- 
-//C +=  t * uColor;
-
- //}
-
-}
-
 void rainbowEmit() {
   float t = 2.0f * float(uCounter) / 500.0f;
 
   float b;
   b = 0.0 * 3.14 + 0.35f * sin(40.0f * t + 5.4 * hash(float(uCounter)/300.0)  );
   uForce= vec2(9.2 * 60.0f * sin(b), 9.2 * 60.0 *  cos(b));
-  uPos = vec2(0.5 + 0.05*sin(float(uCounter)/10.0), 0.4);
+  uPos = vec2(0.5 + 0.05*sin(float(uCounter)/10.0), 0.1);
   uColor = vec3(0.5f, 0.0, 0.0);
   uRad = 0.02f;
   
@@ -951,8 +933,44 @@ void rainbowEmit() {
   if(uRad - dist > 0.0) C = colorize(t, fsUv);
 }
 
+void emit() {
+  uRad = 0.005f;
+  uColor = vec3(1.0, 0.0, 0.0);
+  uPos = vec2(0.5, 0.1 +  1.0f * float(uCounter) / 500.0f);
+  uForce = vec2(0.0, 70.0) + 100.0 * (-1.0 + 2.0* mynoise(300.0 *  uPos));
+
+  float dist = distance(fsUv, uPos);
+  float t = max(uRad - dist, 0.0)/uRad;
+
+  F +=  (t) * uForce;
+  
+{
+  float p = 0.2;
+  vec3 col = vec3(0.0, 0.0, 0.0);
+  float tt = t;
+  tt += float(uCounter) / 200;
+
+  col = 0.7 * pal( 1.0 * tt, vec3(0.5,0.5,0.5),vec3(0.5,0.5,0.5),vec3(1.0,1.0,1.0),vec3(0.0,0.33,0.67) );
+
+ // col = 0.7 * pal( tt, vec3(0.5,0.5,0.5),vec3(0.5,0.5,0.5),vec3(1.2,0.3,1.0),vec3(0.4,0.33,0.27) );
+  //col = 0.7 * pal( 0.7 * tt, vec3(0.5,0.5,0.5),vec3(0.5,0.5,0.5),vec3(0.4,0.3,0.3),vec3(0.8,0.9,0.28) );
+
+  if(uRad - dist > 0.0) C += col;
+
+  dist = distance(fsUv, vec2(0.5, -0.0 + float(uCounter) / 500.0f)  );
+  t = max(uRad - dist, 0.0)/uRad;
+  float theta = 0.0f + 3.14 * 2.0 * mynoise(300.0 *  uPos);
+  F +=  (t) * 70.0 * vec2(cos(theta), sin(theta));
+}
+
+}
+
 void emitter() {
-  rainbowEmit();
+//  rainbowEmit();
+
+  emit();
+
+
 }
 
 
