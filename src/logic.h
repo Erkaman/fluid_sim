@@ -933,11 +933,13 @@ void rainbowEmit() {
   if(uRad - dist > 0.0) C = colorize(t, fsUv);
 }
 
-void emit() {
+// idea, do this emitter in a circle.
+void emit(vec2 eDir, vec2 ePos, vec3 pa, vec3 pb, vec3 pc, vec3 pd) {
+
   uRad = 0.005f;
   uColor = vec3(1.0, 0.0, 0.0);
-  uPos = vec2(0.5, 0.1 +  1.0f * float(uCounter) / 500.0f);
-  uForce = vec2(0.0, 70.0) + 100.0 * (-1.0 + 2.0* mynoise(300.0 *  uPos));
+  uPos = ePos+ eDir * float(uCounter) / 500.0f;
+  uForce = eDir * 70.0 + 100.0 * (-1.0 + 2.0* mynoise(300.0 *  uPos));
 
   float dist = distance(fsUv, uPos);
   float t = max(uRad - dist, 0.0)/uRad;
@@ -950,14 +952,11 @@ void emit() {
   float tt = t;
   tt += float(uCounter) / 200;
 
-  col = 0.7 * pal( 1.0 * tt, vec3(0.5,0.5,0.5),vec3(0.5,0.5,0.5),vec3(1.0,1.0,1.0),vec3(0.0,0.33,0.67) );
-
- // col = 0.7 * pal( tt, vec3(0.5,0.5,0.5),vec3(0.5,0.5,0.5),vec3(1.2,0.3,1.0),vec3(0.4,0.33,0.27) );
-  //col = 0.7 * pal( 0.7 * tt, vec3(0.5,0.5,0.5),vec3(0.5,0.5,0.5),vec3(0.4,0.3,0.3),vec3(0.8,0.9,0.28) );
+  col = 0.6 * pal( 1.0 * tt, pa, pb, pc, pd );
 
   if(uRad - dist > 0.0) C += col;
 
-  dist = distance(fsUv, vec2(0.5, -0.0 + float(uCounter) / 500.0f)  );
+  dist = distance(fsUv,  ePos - 0.1 * eDir + eDir * (float(uCounter) / 500.0f)  );
   t = max(uRad - dist, 0.0)/uRad;
   float theta = 0.0f + 3.14 * 2.0 * mynoise(300.0 *  uPos);
   F +=  (t) * 70.0 * vec2(cos(theta), sin(theta));
@@ -965,10 +964,35 @@ void emit() {
 
 }
 
-void emitter() {
-//  rainbowEmit();
+void circleEmitter() {
 
-  emit();
+  int N = 14;
+  for(int i = 0; i < N; ++i) {
+    float theta = 2.0 * 3.14 *  i / float(N);
+    vec2 pos = vec2(0.5, 0.5) + 0.3 * vec2(cos(theta) , sin(theta));
+    vec2 dir = -vec2(cos(theta) , sin(theta));
+
+    int j = i % 6;
+    if(j == 0) {
+      emit(dir, pos, vec3(0.5,0.5,0.5),vec3(0.5,0.5,0.5),vec3(1.0,1.0,1.0),vec3(0.0,0.33,0.67));
+    } else if(j == 1) {
+      emit(dir, pos, vec3(0.5,0.5,0.5),vec3(0.5,0.5,0.5),vec3(1.2,0.3,1.0),vec3(0.4,0.33,0.27));
+    } else if(j == 2) {
+      emit(dir, pos,vec3(0.5,0.5,0.5),vec3(0.5,0.5,0.5),vec3(0.4,0.3,0.3),vec3(0.8,0.9,0.28));
+    }else if(j == 3) {
+      emit(dir, pos,  vec3(0.5,0.5,0.5),vec3(0.5,0.5,0.5),vec3(1.3,0.7,0.4),vec3(3.46,0.8,0.17));
+    } else if(j == 4) {
+      emit(dir, pos,  vec3(0.5,0.5,0.5),vec3(0.5,0.5,0.5),vec3(0.3,0.2,1.2),vec3(1.46,1.1,0.57));
+    }else if(j == 5) {
+      emit(dir, pos,  vec3(0.5,0.5,0.5),vec3(0.5,0.5,0.5),vec3(0.8,1.1,0.7),vec3(0.15,0.1,0.03));
+    }
+  }
+}
+
+void emitter() {
+  //rainbowEmit();
+
+  circleEmitter();
 
 
 }
