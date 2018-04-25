@@ -107,8 +107,8 @@ inline GLuint LoadNormalShader(const std::string& vsSource, const std::string& f
 	return shader;
 }
 
-const int WINDOW_WIDTH = 256*4;
-const int WINDOW_HEIGHT = 256*4;
+const int WINDOW_WIDTH = 256 * 4;
+const int WINDOW_HEIGHT = 256 * 4;
 
 GLuint vao;
 
@@ -165,6 +165,9 @@ GLuint bsScaleLocation;
 
 GLuint writeTexShader;
 GLuint wtcTexLocation;
+GLuint wtOffsetLocation;
+GLuint wtSizeLocation;
+
 
 GLuint fbo0;
 GLuint fbo1;
@@ -190,6 +193,7 @@ GLuint debugDataTex;
 GLuint debugDataTex2;
 
 GLuint monaTex;
+GLuint screamTex;
 
 void error_callback(int error, const char* description)
 {
@@ -333,7 +337,7 @@ GLuint  jacobi(const int nIter, GLuint bTex, GLuint* tempTex) {
 		}
 		GL_C(glBindFramebuffer(GL_FRAMEBUFFER, 0));
 	}
-	
+
 	// now we have the pressure:
 	return tempTex[(iter + 0) % 2];
 }
@@ -373,12 +377,12 @@ void renderFrame() {
 	GL_C(glDepthFunc(GL_LESS));
 
 	GL_C(glViewport(0, 0, frameW, frameH));
-	
+
 	// enable vertex buffer used for full screen rendering. 
 	GL_C(glEnableVertexAttribArray((GLuint)0));
 	GL_C(glBindBuffer(GL_ARRAY_BUFFER, fullscreenVertexVbo));
 	GL_C(glVertexAttribPointer((GLuint)0, 2, GL_FLOAT, GL_FALSE, sizeof(FullscreenVertex), (void*)0));
-	
+
 	dpush("c Advection");
 	advect(cBegTex, uBegTex, cTempTex);
 	dpop();
@@ -394,7 +398,7 @@ void renderFrame() {
 	dpush("c Add Force");
 	{
 		GL_C(glBindFramebuffer(GL_FRAMEBUFFER, fbo0));
-		GL_C(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, 		
+		GL_C(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,
 			wTempTex,
 			//uEndTex,	
 			0));
@@ -406,11 +410,11 @@ void renderFrame() {
 			GL_C(glClear(GL_COLOR_BUFFER_BIT));
 
 			GL_C(glUseProgram(forceShader));
-			
+
 			GL_C(glUniform1i(fswTexLocation, 0));
 			GL_C(glActiveTexture(GL_TEXTURE0 + 0));
 			GL_C(glBindTexture(GL_TEXTURE_2D, wTex));
-		
+
 			GL_C(glUniform1f(fsCounterLocation, float(counter)));
 
 			RenderFullscreen();
@@ -419,7 +423,7 @@ void renderFrame() {
 	}
 	dpop();
 
-	
+
 	// add color.
 	dpush("Add Color");
 	{
@@ -441,7 +445,7 @@ void renderFrame() {
 			GL_C(glActiveTexture(GL_TEXTURE0 + 0));
 			GL_C(glBindTexture(GL_TEXTURE_2D, cTempTex));
 
-					
+
 			GL_C(glUniform1f(acCounterLocation, float(counter)));
 
 			RenderFullscreen();
@@ -449,7 +453,7 @@ void renderFrame() {
 		GL_C(glBindFramebuffer(GL_FRAMEBUFFER, 0));
 	}
 	dpop();
-	
+
 	if (counter == 1) {
 		// add color.
 		dpush("Write Mona Lisa");
@@ -472,6 +476,8 @@ void renderFrame() {
 				GL_C(glActiveTexture(GL_TEXTURE0 + 0));
 				GL_C(glBindTexture(GL_TEXTURE_2D, monaTex));
 
+				GL_C(glUniform2f(wtOffsetLocation, -1.0f, -1.0f));
+				GL_C(glUniform2f(wtSizeLocation, +2.0f, +2.0f));
 
 				RenderFullscreen();
 			}
@@ -480,7 +486,7 @@ void renderFrame() {
 		dpop();
 	}
 
-	
+
 	dpush("Pressure Gradient Subtract");
 	// subtraction of pressure gradient.
 	{
@@ -503,13 +509,13 @@ void renderFrame() {
 				wDivergenceTex, // b
 				pTempTex
 			);
-			
+
 			dpop();
 
 		}
 		dpop();
 
-	//	I think maybe the texture sampling coordinates are wrong. try not samplignthe texel center.
+		//	I think maybe the texture sampling coordinates are wrong. try not samplignthe texel center.
 
 		dpush("pressure gradient subtraction");
 		{
@@ -523,7 +529,7 @@ void renderFrame() {
 				GL_C(glClear(GL_COLOR_BUFFER_BIT));
 
 				GL_C(glUseProgram(gradientSubtractionShader));
-				
+
 				GL_C(glUniform1i(gsswTexLocation, 0));
 				GL_C(glActiveTexture(GL_TEXTURE0 + 0));
 				GL_C(glBindTexture(GL_TEXTURE_2D, wTempTex));
@@ -540,7 +546,7 @@ void renderFrame() {
 
 	}
 	dpop();
-	
+
 	/*
 	dpush("Boudary Block");
 	{
@@ -548,14 +554,14 @@ void renderFrame() {
 		GL_C(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,
 			uEndTex, 0	));
 		GL_C(glBindFramebuffer(GL_FRAMEBUFFER, 0));
-		
+
 		GL_C(glBindFramebuffer(GL_FRAMEBUFFER, fbo0));
 		{
 			GL_C(glClearColor(0.0f, 0.0f, 0.0f, 0.0f));
 			GL_C(glClear(GL_COLOR_BUFFER_BIT));
 
 			GL_C(glUseProgram(boundaryShader));
-			
+
 			GL_C(glUniform1i(bswTexSizeLocation, 1));
 			GL_C(glActiveTexture(GL_TEXTURE0 + 1));
 			GL_C(glBindTexture(GL_TEXTURE_2D, uEndTempTex));
@@ -569,28 +575,28 @@ void renderFrame() {
 
 			RenderFullscreen();
 
-		
+
 			GL_C(glUniform2f(bsPosOffsetLocation, 0.0f, 0.0f));
 			GL_C(glUniform2f(bsPosSizeLocation, 1.0f, delta.y));
 			GL_C(glUniform2f(bsSampleOffsetLocation, 0.0f, +delta.y));
 			GL_C(glUniform1f(bsScaleLocation, -1.0f));
 			RenderFullscreen();
-			
+
 			GL_C(glUniform2f(bsPosOffsetLocation, 0.0f, 1.0f - delta.y));
 			GL_C(glUniform2f(bsPosSizeLocation, 1.0f, delta.y));
 			GL_C(glUniform2f(bsSampleOffsetLocation, 0.0f, -delta.y));
 			GL_C(glUniform1f(bsScaleLocation, -1.0f));
 			RenderFullscreen();
-			
+
 			GL_C(glUniform2f(bsPosOffsetLocation, 0.0f, 0.0f));
 			GL_C(glUniform2f(bsPosSizeLocation, delta.x, 1.0f));
 			GL_C(glUniform2f(bsSampleOffsetLocation, +delta.x, 0.0f));
 			GL_C(glUniform1f(bsScaleLocation, -1.0f));
 			RenderFullscreen();
-			
+
 			GL_C(glUniform2f(bsPosOffsetLocation, 1.0f - delta.x, 0.0));
 			GL_C(glUniform2f(bsPosSizeLocation, delta.x, 1.0f));
-			GL_C(glUniform2f(bsSampleOffsetLocation, -delta.x, 0.0f));	
+			GL_C(glUniform2f(bsSampleOffsetLocation, -delta.x, 0.0f));
 			GL_C(glUniform1f(bsScaleLocation, -1.0f));
 			RenderFullscreen();
 		}
@@ -598,7 +604,7 @@ void renderFrame() {
 	}
 	dpop();
 	*/
-	
+
 	dpush("Rendering");
 	{
 		GL_C(glClearColor(0.0f, 0.0f, 0.0f, 0.0f));
@@ -613,7 +619,7 @@ void renderFrame() {
 		RenderFullscreen();
 	}
 	dpop();
-	
+
 	//if (counter <= 30000) 
 	{
 
@@ -651,7 +657,7 @@ GLuint createFloatTexture(float* data, GLint internalFormat, GLint format, GLenu
 	GL_C(glGenTextures(1, &tex));
 	GL_C(glBindTexture(GL_TEXTURE_2D, tex));
 	GL_C(glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, frameW, frameH, 0, format, type, data));
-	
+
 	GL_C(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR));
 	GL_C(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR));
 
@@ -659,6 +665,49 @@ GLuint createFloatTexture(float* data, GLint internalFormat, GLint format, GLenu
 	GL_C(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
 
 	GL_C(glBindTexture(GL_TEXTURE_2D, 0));
+
+	return tex;
+}
+
+GLuint loadTexture(const char* filepath) {
+	FILE* fh = fopen(filepath, "rb");
+	if (fh == nullptr) {
+		printf("COUDL NOT LOAD %s\n", filepath);
+	}
+
+	int width;
+	int height;
+	int depth;
+	GLubyte* bitmap = static_cast<GLubyte*>(stbi_load_from_file(fh, &width, &height,
+		&depth,
+		STBI_default));
+
+	GLint format = 0, internalFormat = 0;
+	switch (depth) {
+
+	case STBI_rgb: {
+		format = GL_RGB;
+		internalFormat = GL_RGB;
+		break;
+	}
+	case STBI_rgb_alpha: {
+		format = GL_RGBA;
+		internalFormat = GL_RGBA;
+
+		break;
+	}
+
+	}
+
+	GLuint tex;
+
+	GL_C(glGenTextures(1, &tex));
+	GL_C(glBindTexture(GL_TEXTURE_2D, tex));
+	GL_C(glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, width, height, 0, format, GL_UNSIGNED_BYTE, bitmap));
+	GL_C(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR));
+	GL_C(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR));
+	GL_C(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
+	GL_C(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
 
 	return tex;
 }
@@ -679,7 +728,7 @@ void setupGraphics(int w, int h) {
 
 	// frameFbo
 	{
-		
+
 		{
 			float* cData = new float[frameW * frameH * 4];
 			for (int y = 0; y < frameH; ++y) {
@@ -703,8 +752,8 @@ void setupGraphics(int w, int h) {
 					b = fmaxf(fx, fy);
 					b = 0.0f;
 
-					cData[4 * (frameW * y + x) + 0] = r;			
-					cData[4 * (frameW * y + x) + 1] = g;			
+					cData[4 * (frameW * y + x) + 0] = r;
+					cData[4 * (frameW * y + x) + 1] = g;
 					cData[4 * (frameW * y + x) + 2] = b;
 					cData[4 * (frameW * y + x) + 3] = 1.0f;
 
@@ -716,7 +765,7 @@ void setupGraphics(int w, int h) {
 				for (int x = 0; x < frameW; ++x) {
 
 					zeroData[4 * (frameW * y + x) + 0] = 0.0f;
-					zeroData[4 * (frameW * y + x) + 1] = 0.0f;			
+					zeroData[4 * (frameW * y + x) + 1] = 0.0f;
 					zeroData[4 * (frameW * y + x) + 2] = 0.0f;
 					zeroData[4 * (frameW * y + x) + 3] = 0.0f;
 				}
@@ -724,7 +773,7 @@ void setupGraphics(int w, int h) {
 
 			cBegTex = createFloatTexture(zeroData, GL_RGBA32F, GL_RGBA, GL_FLOAT);
 
-			
+
 			//	GL_C(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, frameW, frameH, 0, GL_RGBA, GL_FLOAT, data));
 
 			uBegTex = createFloatTexture(zeroData, GL_RG32F, GL_RG, GL_FLOAT);
@@ -747,90 +796,24 @@ void setupGraphics(int w, int h) {
 			zeroData[4 * (frameW * 10 + 10) + 0] = (-4.0 * 5.0f) * r;
 
 			zeroData[4 * (frameW * 11 + 10) + 0] = 5.0f * r;
-			zeroData[4 * (frameW * 9  + 10) + 0] = 5.0f * r;
+			zeroData[4 * (frameW * 9 + 10) + 0] = 5.0f * r;
 			zeroData[4 * (frameW * 10 + 11) + 0] = 5.0f * r;
-			zeroData[4 * (frameW * 10 + 9 ) + 0] = 5.0f * r;
+			zeroData[4 * (frameW * 10 + 9) + 0] = 5.0f * r;
 
 			debugDataTex = createFloatTexture(zeroData, GL_RGBA32F, GL_RGBA, GL_FLOAT);
 			debugDataTex2 = createFloatTexture(zeroData, GL_RGBA32F, GL_RGBA, GL_FLOAT);
 		}
-		
+
 
 		{
 			GL_C(glGenFramebuffers(1, &fbo0));
 			GL_C(glGenFramebuffers(1, &fbo1));
 		}
 	}
-	
-	{
-	
-		FILE* fh = fopen("../smallmona.jpg", "rb");
-		if (fh == nullptr) {
-			printf("COUDL NOT LOAD MONA\n");
-		}
-		
-		int width;
-		int height;
-	
-		int depth;
-		
-		GLubyte* bitmap = static_cast<GLubyte*>(stbi_load_from_file(fh, &width, &height,
-			&depth,
-			STBI_default));
 
-		
-		for (int i = 0; i < width*height*depth; ++i) {
-			GLubyte b = bitmap[i];
+	monaTex = loadTexture("../smallmona.jpg");
+	screamTex = loadTexture("../smallscream.jpg");
 
-			if (b > 0) {
-		//		printf("lol: %d\n", b);
-			}
-			
-			/*
-			if (  (i >  width*height*depth-1000) && (i < width*height*depth - 900)) {
-			
-				printf("%d\n", b);
-			}
-			*/
-		}
-		
-
-		GLint format = 0, internalFormat = 0;
-		switch (depth) {
-
-		case STBI_rgb: {
-			format = GL_RGB;
-	
-				
-			internalFormat = GL_RGB;
-			
-			break;
-		}
-		case STBI_rgb_alpha: {
-			format = GL_RGBA;
-		
-				internalFormat = GL_RGBA;
-			
-			break;
-		}
-
-		}
-
-		//GL_RGBA32F, GL_RGBA
-		internalFormat = GL_RGB8;
-		format = GL_RGB;
-
-		GLubyte* aa = bitmap + (width * height * depth);
-
-		GL_C(glGenTextures(1, &monaTex));
-		GL_C(glBindTexture(GL_TEXTURE_2D, monaTex));
-		GL_C(glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, width, height, 0, format, GL_UNSIGNED_BYTE, bitmap));
-		GL_C(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR));
-		GL_C(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR));
-		GL_C(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
-		GL_C(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
-	}
-	
 	std::string fullscreenVs(R"(
        layout(location = 0) in vec3 vsPos;
 
@@ -846,7 +829,7 @@ void setupGraphics(int w, int h) {
 
 	std::string fragDefines = "";
 	fragDefines += deltaCode;
-	
+
 	//std::string remapPosCode = std::string("vec2 remapPos(vec2 p) { return delta + p * (1.0 - 2.0 * delta); }\n");
 	std::string remapPosCode = std::string("vec2 remapPos(vec2 p) { return p; }\n");
 
@@ -856,9 +839,9 @@ void setupGraphics(int w, int h) {
 	std::string vertDefines = "";
 	vertDefines += deltaCode;
 	vertDefines += remapPosCode;
-//	vertDefines += remapUvCode;
+	//	vertDefines += remapUvCode;
 
-	
+
 	advectShader = LoadNormalShader(
 		vertDefines +
 		fullscreenVs,
@@ -916,7 +899,7 @@ void setupGraphics(int w, int h) {
 	jsbTexLocation = glGetUniformLocation(jacobiShader, "ubTex");
 	jsBetaLocation = glGetUniformLocation(jacobiShader, "uBeta");
 	jsAlphaLocation = glGetUniformLocation(jacobiShader, "uAlpha");
-	
+
 	divergenceShader = LoadNormalShader(
 		vertDefines +
 		fullscreenVs,
@@ -1122,6 +1105,12 @@ if(uCounter > 3) {
 }
 */
 
+/*
+if(uCounter > 3 && uCounter < 30) {
+  
+  F +=  vec2(0.8, 0.0);
+}
+*/
 
 }
 
@@ -1154,8 +1143,8 @@ if(uCounter > 3) {
 	);
 	fswTexLocation = glGetUniformLocation(forceShader, "uwTex");
 	fsCounterLocation = glGetUniformLocation(forceShader, "uCounter");
-	
-    addColorShader = LoadNormalShader(
+
+	addColorShader = LoadNormalShader(
 		vertDefines +
 		fullscreenVs,
 		fragDefines +
@@ -1177,10 +1166,26 @@ if(uCounter > 3) {
 	);
 	accTexLocation = glGetUniformLocation(addColorShader, "ucTex");
 	acCounterLocation = glGetUniformLocation(addColorShader, "uCounter");
-	
+
 	writeTexShader = LoadNormalShader(
-		vertDefines +
-		fullscreenVs,
+		//vertDefines +
+
+		R"(
+		layout(location = 0) in vec3 vsPos;
+
+	out vec2 fsUv;
+
+    uniform vec2 uOffset;
+    uniform vec2 uSize;
+
+
+	void main() {
+		fsUv = (vsPos.xy);
+//		gl_Position = vec4(2.0 * (vsPos.xy) - vec2(1.0), 0.0, 1.0);
+		gl_Position = vec4(uSize * (vsPos.xy) + uOffset, 0.0, 1.0);
+	}
+	)",
+
 		fragDefines +
 		std::string(R"(
 
@@ -1199,19 +1204,21 @@ if(uCounter > 3) {
 		)")
 	);
 	wtcTexLocation = glGetUniformLocation(writeTexShader, "ucTex");
-	
+	wtOffsetLocation = glGetUniformLocation(writeTexShader, "uOffset");
+	wtSizeLocation = glGetUniformLocation(writeTexShader, "uSize");
+
 	boundaryShader = LoadNormalShader(
-		
-R"(
+
+		R"(
 	uniform vec2 uPosOffset;
 	uniform vec2 uPosSize;
 
 	vec2 remapPos(vec2 p) { return uPosOffset + p * uPosSize; }
 )" +
 
-		fullscreenVs,
-		deltaCode +
-		std::string(R"(
+fullscreenVs,
+deltaCode +
+std::string(R"(
         in vec2 fsUv;
         out vec4 FragColor;
 
@@ -1235,9 +1242,9 @@ R"(
 	bswTexSizeLocation = glGetUniformLocation(boundaryShader, "uwTex");
 	bsSampleOffsetLocation = glGetUniformLocation(boundaryShader, "uSampleOffset");
 	bsScaleLocation = glGetUniformLocation(boundaryShader, "uScale");
-	
+
 	visShader = LoadNormalShader(
-		
+
 		std::string(R"(
        layout(location = 0) in vec3 vsPos;
 
@@ -1287,7 +1294,7 @@ R"(
 		GL_C(glBindBuffer(GL_ARRAY_BUFFER, fullscreenVertexVbo));
 		GL_C(glBufferData(GL_ARRAY_BUFFER, sizeof(FullscreenVertex)*vertices.size(), (float*)vertices.data(), GL_STATIC_DRAW));
 	}
-	
+
 	LOGI("start loading extension!\n");
 
 	LOGI("Init opengl\n");
