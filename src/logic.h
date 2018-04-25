@@ -12,6 +12,9 @@
 #include <chrono>
 #include <thread>
 
+#define STB_IMAGE_IMPLEMENTATION
+#define STBI_ONLY_JPEG
+#include "stb_image.h"
 
 #include <glad/glad.h>
 
@@ -160,6 +163,9 @@ GLuint bswTexSizeLocation;
 GLuint bsSampleOffsetLocation;
 GLuint bsScaleLocation;
 
+GLuint writeTexShader;
+GLuint wtcTexLocation;
+
 GLuint fbo0;
 GLuint fbo1;
 
@@ -182,6 +188,8 @@ GLuint uEndTempTex;
 
 GLuint debugDataTex;
 GLuint debugDataTex2;
+
+GLuint monaTex;
 
 void error_callback(int error, const char* description)
 {
@@ -441,6 +449,37 @@ void renderFrame() {
 		GL_C(glBindFramebuffer(GL_FRAMEBUFFER, 0));
 	}
 	dpop();
+	
+	if (counter == 1) {
+		// add color.
+		dpush("Write Mona Lisa");
+		{
+			GL_C(glBindFramebuffer(GL_FRAMEBUFFER, fbo0));
+			GL_C(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,
+				//cBegTex,
+				cEndTex,
+				0));
+			GL_C(glBindFramebuffer(GL_FRAMEBUFFER, 0));
+
+			GL_C(glBindFramebuffer(GL_FRAMEBUFFER, fbo0));
+			{
+				GL_C(glClearColor(0.0f, 0.0f, 0.0f, 0.0f));
+				GL_C(glClear(GL_COLOR_BUFFER_BIT));
+
+				GL_C(glUseProgram(writeTexShader));
+
+				GL_C(glUniform1i(wtcTexLocation, 0));
+				GL_C(glActiveTexture(GL_TEXTURE0 + 0));
+				GL_C(glBindTexture(GL_TEXTURE_2D, monaTex));
+
+
+				RenderFullscreen();
+			}
+			GL_C(glBindFramebuffer(GL_FRAMEBUFFER, 0));
+		}
+		dpop();
+	}
+
 	
 	dpush("Pressure Gradient Subtract");
 	// subtraction of pressure gradient.
@@ -723,6 +762,75 @@ void setupGraphics(int w, int h) {
 		}
 	}
 	
+	{
+	
+		FILE* fh = fopen("../smallmona.jpg", "rb");
+		if (fh == nullptr) {
+			printf("COUDL NOT LOAD MONA\n");
+		}
+		
+		int width;
+		int height;
+	
+		int depth;
+		
+		GLubyte* bitmap = static_cast<GLubyte*>(stbi_load_from_file(fh, &width, &height,
+			&depth,
+			STBI_default));
+
+		
+		for (int i = 0; i < width*height*depth; ++i) {
+			GLubyte b = bitmap[i];
+
+			if (b > 0) {
+		//		printf("lol: %d\n", b);
+			}
+			
+			/*
+			if (  (i >  width*height*depth-1000) && (i < width*height*depth - 900)) {
+			
+				printf("%d\n", b);
+			}
+			*/
+		}
+		
+
+		GLint format = 0, internalFormat = 0;
+		switch (depth) {
+
+		case STBI_rgb: {
+			format = GL_RGB;
+	
+				
+			internalFormat = GL_RGB;
+			
+			break;
+		}
+		case STBI_rgb_alpha: {
+			format = GL_RGBA;
+		
+				internalFormat = GL_RGBA;
+			
+			break;
+		}
+
+		}
+
+		//GL_RGBA32F, GL_RGBA
+		internalFormat = GL_RGB8;
+		format = GL_RGB;
+
+		GLubyte* aa = bitmap + (width * height * depth);
+
+		GL_C(glGenTextures(1, &monaTex));
+		GL_C(glBindTexture(GL_TEXTURE_2D, monaTex));
+		GL_C(glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, width, height, 0, format, GL_UNSIGNED_BYTE, bitmap));
+		GL_C(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR));
+		GL_C(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR));
+		GL_C(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
+		GL_C(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
+	}
+	
 	std::string fullscreenVs(R"(
        layout(location = 0) in vec3 vsPos;
 
@@ -992,7 +1100,27 @@ void circleEmitter() {
 void emitter() {
   //rainbowEmit();
 
-  circleEmitter();
+ // circleEmitter();
+
+/*
+if(uCounter > 3) {
+ 
+  uRad = 0.005f;
+  uColor = vec3(1.0, 0.0, 0.0);
+  vec2 ePos = vec2(0.1, 0.5);
+  vec2 eDir = normalize(vec2(0.5, 0.5));
+  for(float x = 0.02; x < 0.98; x += 0.05) {
+    for(float y = 0.02; y < 0.98; y += 0.05) {
+      uPos = vec2(x, y);
+      float theta = 0.0f + 3.14 * 2.0 * mynoise(300.0 *  uPos + vec2(uCounter / 200.0) );
+      uForce = 1.0 * vec2(cos(theta), sin(theta));
+      float dist = distance(fsUv, uPos);
+      float t = max(uRad - dist, 0.0)/uRad;
+      F +=  (t) * uForce;
+    }
+  }
+}
+*/
 
 
 }
@@ -1038,7 +1166,6 @@ void emitter() {
 
         out vec4 FragColor;
 
-
 		void main()
 		{
           C = vec3(0.0, 0.0, 0.0);
@@ -1050,8 +1177,29 @@ void emitter() {
 	);
 	accTexLocation = glGetUniformLocation(addColorShader, "ucTex");
 	acCounterLocation = glGetUniformLocation(addColorShader, "uCounter");
+	
+	writeTexShader = LoadNormalShader(
+		vertDefines +
+		fullscreenVs,
+		fragDefines +
+		std::string(R"(
 
+        uniform sampler2D ucTex;
 
+        out vec4 FragColor;
+        in vec2 fsUv;
+
+		void main()
+		{
+          FragColor = vec4(pow(texture(ucTex, vec2(fsUv.x, 1.0 - fsUv.y) ).rgb, vec3(2.2)), 1.0);
+
+       //   FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+
+		}
+		)")
+	);
+	wtcTexLocation = glGetUniformLocation(writeTexShader, "ucTex");
+	
 	boundaryShader = LoadNormalShader(
 		
 R"(
@@ -1139,10 +1287,8 @@ R"(
 		GL_C(glBindBuffer(GL_ARRAY_BUFFER, fullscreenVertexVbo));
 		GL_C(glBufferData(GL_ARRAY_BUFFER, sizeof(FullscreenVertex)*vertices.size(), (float*)vertices.data(), GL_STATIC_DRAW));
 	}
-
 	
 	LOGI("start loading extension!\n");
 
 	LOGI("Init opengl\n");
 }
-
