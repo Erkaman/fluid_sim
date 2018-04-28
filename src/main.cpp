@@ -109,6 +109,8 @@ GLuint vao;
 
 int fbWidth, fbHeight;
 
+bool done = false;
+
 struct FullscreenVertex {
 	float x, y; // position
 };
@@ -174,10 +176,12 @@ GLuint screamTex;
 enum SimulationStage {
 	CIRCLE_SIM = 0,
 	FADE_IN_MONA_LISA_SIM = 1,
-
 	MONA_LISA_SIM = 2,
-	THE_SCREAM_SIM = 3,
-	RAINBOW_SIM = 4,
+	
+	FADE_IN_THE_SCREAM_SIM = 3,
+	THE_SCREAM_SIM = 4,
+
+	RAINBOW_SIM = 5,
 };
 
 SimulationStage curSim = CIRCLE_SIM;
@@ -412,19 +416,19 @@ void renderFrame() {
 		blend = 0.0f;
 		icounter = 0;
 		curSim = FADE_IN_MONA_LISA_SIM;
-	} else if (icounter > 0 && icounter < 80 && curSim == FADE_IN_MONA_LISA_SIM) {
+	} else if (icounter < 80 && curSim == FADE_IN_MONA_LISA_SIM) {
 		float t =((float)icounter) / 80;
 		
 		blend =  pow(t, 3.0);
-
-		//blend = t;
-
 	} else if (icounter == 80 && curSim == FADE_IN_MONA_LISA_SIM) {
 		icounter = 0;
 		curSim = MONA_LISA_SIM;
 		blend = 1.0f;
+	} else if (icounter > 800 && icounter < 1100 && curSim == MONA_LISA_SIM) {
+		float t = 1.0 - ((float)icounter - 800.0f) / 300.0f;
+		blend = t;
 	}
-	else if (icounter == 300 && curSim == MONA_LISA_SIM) {
+	else if (icounter == 1100 && curSim == MONA_LISA_SIM) {
 		clearTexture(wTex);
 
 		dpush("Write Scream");
@@ -454,14 +458,46 @@ void renderFrame() {
 		dpop();
 		
 		icounter = 0;
-		blend = 1.0f;
+		blend = 0.0f;
+		curSim = FADE_IN_THE_SCREAM_SIM;
+	}else if (icounter < 130 && curSim == FADE_IN_THE_SCREAM_SIM) {
+		float t = ((float)icounter) / 130;
+		
+		blend = pow(t, 3.0);
+
+		//blend = t;
+		
+	}
+	else if (icounter == 130 && curSim == FADE_IN_THE_SCREAM_SIM) {
+		icounter = 0;
 		curSim = THE_SCREAM_SIM;
-	} else if (icounter == 300 && curSim == THE_SCREAM_SIM) {
+		blend = 1.0f;
+	}else if (icounter > 1100 && icounter < 1300 && curSim == THE_SCREAM_SIM) {
+		float t = 1.0 - ((float)icounter - 1100.0f) / 200.0f;
+		blend = t;
+	}
+	
+	else if (icounter == 1300 && curSim == THE_SCREAM_SIM) {
 		clearTexture(wTex);
 		clearTexture(cTempTex);
-		blend = 1.0f;
+		blend = 0.0f;
 		icounter = 0;
 		curSim = RAINBOW_SIM;
+	}
+	else if (icounter < 500 && curSim == RAINBOW_SIM) {
+		float t = ((float)icounter) / 500;
+		blend = t;
+	}
+	else if (icounter == 500 && curSim == RAINBOW_SIM) {
+		blend = 1.0f;
+	} else if (icounter > 1000 && icounter < 1200 && curSim == RAINBOW_SIM) {
+		float t = 1.0 - ((float)icounter - 1000.0f) / 200.0f;
+		blend = t;
+	}
+	else if (icounter >= 1200 &&  icounter <= 1300 && curSim == RAINBOW_SIM) {
+		blend = 0.0f;
+	} else if (icounter >= 1300 && curSim == RAINBOW_SIM) {
+		done = true;
 	}
 	
 	// add force.
@@ -1088,9 +1124,9 @@ if(uSim == 0) {
   
 } else if(uSim == 2) {
   monaLisa();
-} else if(uSim == 3) {
-  theScream();
 } else if(uSim == 4) {
+  theScream();
+} else if(uSim == 5) {
   rainbowEmit();
 }
 
@@ -1201,7 +1237,7 @@ if(uSim == 0) {
   
 		void main()
 		{
-          FragColor = vec4(pow(texture2D(uTex, fsUv).rgb * uBlend, vec3(1.0 / 2.2)), 1.0);
+          FragColor = vec4(pow(clamp(texture2D(uTex, fsUv).rgb, 0.0, 1.0) * uBlend, vec3(1.0 / 2.2)), 1.0);
 
 		}
 		)")
@@ -1235,7 +1271,7 @@ int main(int argc, char** argv) {
 	float frameEndTime = 0;
 	frameStartTime = (float)glfwGetTime();
 	
-	while (!glfwWindowShouldClose(window)) {
+	while (!glfwWindowShouldClose(window) && !done) {
 		glfwPollEvents();
 		handleInput();
 		renderFrame();
