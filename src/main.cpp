@@ -403,7 +403,7 @@ void renderFrame() {
 	// below is code that handles smooth transitions between the four simulations.
 	{
 		if (icounter > 400 && icounter < 700 && curSim == CIRCLE_SIM) {
-			float t = 1.0 - ((float)icounter - 400.0f) / 300.0f;
+			float t = 1.0f - ((float)icounter - 400.0f) / 300.0f;
 			blend = t;
 		}
 		else if (icounter == 700 && curSim == CIRCLE_SIM) {
@@ -422,7 +422,7 @@ void renderFrame() {
 		else if (icounter < 80 && curSim == FADE_IN_MONA_LISA_SIM) {
 			float t = ((float)icounter) / 80;
 
-			blend = pow(t, 3.0);
+			blend = pow(t, 3.0f);
 		}
 		else if (icounter == 80 && curSim == FADE_IN_MONA_LISA_SIM) {
 			icounter = 0;
@@ -430,7 +430,7 @@ void renderFrame() {
 			blend = 1.0f;
 		}
 		else if (icounter > 900 && icounter < 1200 && curSim == MONA_LISA_SIM) {
-			float t = 1.0 - ((float)icounter - 900.0f) / 300.0f;
+			float t = 1.0f - ((float)icounter - 900.0f) / 300.0f;
 			blend = t;
 		}
 		else if (icounter == 1200 && curSim == MONA_LISA_SIM) {
@@ -446,7 +446,7 @@ void renderFrame() {
 		}
 		else if (icounter < 130 && curSim == FADE_IN_THE_SCREAM_SIM) {
 			float t = ((float)icounter) / 130;
-			blend = pow(t, 3.0);
+			blend = pow(t, 3.0f);
 		}
 		else if (icounter == 130 && curSim == FADE_IN_THE_SCREAM_SIM) {
 			icounter = 0;
@@ -454,7 +454,7 @@ void renderFrame() {
 			blend = 1.0f;
 		}
 		else if (icounter > 1100 && icounter < 1300 && curSim == THE_SCREAM_SIM) {
-			float t = 1.0 - ((float)icounter - 1100.0f) / 200.0f;
+			float t = 1.0f - ((float)icounter - 1100.0f) / 200.0f;
 			blend = t;
 		}
 
@@ -473,7 +473,7 @@ void renderFrame() {
 			blend = 1.0f;
 		}
 		else if (icounter > 1000 && icounter < 1200 && curSim == RAINBOW_SIM) {
-			float t = 1.0 - ((float)icounter - 1000.0f) / 200.0f;
+			float t = 1.0f - ((float)icounter - 1000.0f) / 200.0f;
 			blend = t;
 		}
 		else if (icounter >= 1200 && icounter <= 1300 && curSim == RAINBOW_SIM) {
@@ -548,34 +548,32 @@ void renderFrame() {
 
 	dpush("Pressure Gradient Subtract");
 	// subtraction of pressure gradient.
+	// this is necessary, in order to make the divergence of the fluid equal to zero, 
+	// which is what makes it act like a fluid.
 	{
 		dpush("Compute divergence of w");
 		computeDivergence(wTempTex, wDivergenceTex);
 		dpop();
 
 		dpush("Compute pressure");
-		// compute pressure.
+		// compute pressure, using jacobi iterations.
 		{
-
 			dpush("Clear pTemp Textures");
 			clearTexture(pTempTex[0]);
 			clearTexture(pTempTex[1]);
 			dpop();
 
 			dpush("Jacobi");
-
 			pTex = jacobi(40,
 				wDivergenceTex, // b
 				pTempTex
 			);
-
 			dpop();
 
 		}
 		dpop();
 
-		//	I think maybe the texture sampling coordinates are wrong. try not samplignthe texel center.
-
+		// now we have computed the pressure, now subtract the gradient of the pressure. 
 		dpush("pressure gradient subtraction");
 		{
 			GL_C(glBindFramebuffer(GL_FRAMEBUFFER, fbo0));
@@ -739,6 +737,9 @@ void setupGraphics() {
 	
 	GL_C(glGenFramebuffers(1, &fbo0));
 
+	// all the shaders can just use the same vertex shader, 
+	// since all the shaders are basically rendering a fullscreen quad,
+	// and the actual logic is in the fragment shader. 
 	std::string fullscreenVs(R"(
        layout(location = 0) in vec3 vsPos;
 
@@ -872,7 +873,8 @@ void setupGraphics() {
 
 	// in order to make interesting simulations, 
 	// we place out emitters that add colors and forces to different locations.
-	// this self-containe string contains all the emitter logic.
+	// this self-contained string contains all the emitter logic.,
+	// for all the four simulations.
 	std::string emitterCode = std::string(R"(
 vec2 F;
 vec3 C;
