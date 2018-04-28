@@ -16,8 +16,8 @@
 #include "stb_image.h"
 
 #include <glad/glad.h>
+#define GL_DEBUG_SOURCE_APPLICATION       0x824A
 #include <GLFW/glfw3.h>
-
 
 inline void checkOpenGLError(const char* stmt, const char* fname, int line)
 {
@@ -40,7 +40,8 @@ inline void checkOpenGLError(const char* stmt, const char* fname, int line)
     } while (0)
 #endif
 
-#define DEBUG_GROUPS 1
+// define this one, if you need it for debugging.
+#undef DEBUG_GROUPS
 
 inline char* getShaderLogInfo(GLuint shader) {
 	GLint len;
@@ -108,8 +109,6 @@ GLuint vao;
 
 int fbWidth, fbHeight;
 
-int frameW, frameH;
-
 struct FullscreenVertex {
 	float x, y; // position
 };
@@ -143,13 +142,6 @@ GLuint addColorShader;
 GLuint accTexLocation;
 GLuint acCounterLocation;
 
-GLuint boundaryShader;
-GLuint bsPosOffsetLocation;
-GLuint bsPosSizeLocation;
-GLuint bswTexSizeLocation;
-GLuint bsSampleOffsetLocation;
-GLuint bsScaleLocation;
-
 GLuint writeTexShader;
 GLuint wtcTexLocation;
 GLuint wtOffsetLocation;
@@ -171,13 +163,11 @@ GLuint wTempTex;
 GLuint wDivergenceTex;
 GLuint pTempTex[2];
 GLuint pTex;
-GLuint debugTex;
 GLuint uEndTempTex;
 
 GLuint monaTex;
 GLuint screamTex;
 
-#ifdef WIN32
 void initGlfw() {
 	if (!glfwInit())
 		exit(EXIT_FAILURE);
@@ -189,7 +179,7 @@ void initGlfw() {
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 
-	window = glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Deferred Shading Demo", NULL, NULL);
+	window = glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Flashy Fluid Simulation Demo", NULL, NULL);
 	if (!window) {
 		glfwTerminate();
 		exit(EXIT_FAILURE);
@@ -207,10 +197,9 @@ void initGlfw() {
 
 	glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
 }
-#endif
 
+// render fullscren quad.
 void renderFullscreen() {
-
 	GL_C(glDrawArrays(GL_TRIANGLES, 0, 6));
 }
 
@@ -227,8 +216,8 @@ void clearTexture(GLuint tex) {
 	GL_C(glBindFramebuffer(GL_FRAMEBUFFER, 0));
 }
 
+// compute divergence of src, put the result in dst. 
 void computeDivergence(GLuint src, GLuint dst) {
-	// compute divergence of w.
 	{
 		GL_C(glBindFramebuffer(GL_FRAMEBUFFER, fbo0));
 		GL_C(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, dst, 0));
@@ -251,6 +240,7 @@ void computeDivergence(GLuint src, GLuint dst) {
 	}
 }
 
+// advect src, using u as velocity, and put the result into dst.
 void advect(GLuint src, GLuint u, GLuint dst) {
 	GL_C(glBindFramebuffer(GL_FRAMEBUFFER, fbo0));
 	GL_C(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, dst, 0));
@@ -276,6 +266,9 @@ void advect(GLuint src, GLuint u, GLuint dst) {
 	GL_C(glBindFramebuffer(GL_FRAMEBUFFER, 0));
 }
 
+// solve the poisson pressure equation, by simple jacobi iteration.
+// that is, solve for x in
+// (nabla^2)(x) = b.
 GLuint  jacobi(const int nIter, GLuint bTex, GLuint* tempTex) {
 	int iter;
 	for (iter = 0; iter < nIter; ++iter) {
@@ -301,9 +294,7 @@ GLuint  jacobi(const int nIter, GLuint bTex, GLuint* tempTex) {
 			GL_C(glActiveTexture(GL_TEXTURE0 + 1));
 			GL_C(glBindTexture(GL_TEXTURE_2D, bTex));
 
-			//GL_C(glUniform2f(jsAlphaLocation, -delta.x*delta.x, -delta.y*delta.y));
 			GL_C(glUniform2f(jsAlphaLocation, -1.0f, -1.0f));
-
 			GL_C(glUniform2f(jsBetaLocation, 1.0 / 4.0, 1.0 / 4.0));
 
 
@@ -311,34 +302,26 @@ GLuint  jacobi(const int nIter, GLuint bTex, GLuint* tempTex) {
 		}
 		GL_C(glBindFramebuffer(GL_FRAMEBUFFER, 0));
 	}
-
-	// now we have the pressure:
+	
+	// now we return the calculuated pressure:
 	return tempTex[(iter + 0) % 2];
 }
 
+// these two are pretty useful, when debugging in RenderDoc or Nsight for instance.
 void dpush(const char* str) {
 #ifdef DEBUG_GROUPS
 	glad_glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, str);
 #endif
 }
-
 void dpop() {
 #ifdef DEBUG_GROUPS
 	glad_glPopDebugGroup();
 #endif
 }
 
-#define GL_DEBUG_SOURCE_APPLICATION       0x824A
+
 void renderFrame() {
-
-	// StartTimingEvent();
-
-	static bool firstFrame = true;
-	// setup matrices.
-
-	//profiler->Begin(GpuTimeStamp::RENDER_EVERYTHING);
-
-	// setup GL state.
+	// setup some reasonable default GL state.
 	GL_C(glDisable(GL_DEPTH_TEST));
 	GL_C(glDepthMask(false));
 	GL_C(glDisable(GL_BLEND));
@@ -350,21 +333,23 @@ void renderFrame() {
 	GL_C(glBindTexture(GL_TEXTURE_2D, 0));
 	GL_C(glDepthFunc(GL_LESS));
 
-	GL_C(glViewport(0, 0, frameW, frameH));
-
-	// enable vertex buffer used for full screen rendering. 
+	GL_C(glViewport(0, 0, fbWidth, fbHeight));
+	
+	// enable vertex buffer used for full screen quad rendering. 
+	// this buffer is used for all rendering, from now on.
 	GL_C(glEnableVertexAttribArray((GLuint)0));
 	GL_C(glBindBuffer(GL_ARRAY_BUFFER, fullscreenVertexVbo));
 	GL_C(glVertexAttribPointer((GLuint)0, 2, GL_FLOAT, GL_FALSE, sizeof(FullscreenVertex), (void*)0));
 
-	dpush("c Advection");
+	dpush("color Advection");
 	advect(cBegTex, uBegTex, cTempTex);
 	dpop();
-
-	dpush("u Advection");
+	
+	dpush("velocity Advection");
 	advect(uBegTex, uBegTex, wTex);
 	dpop();
 
+	// we use this simple counter for progressing the state of the the simulation.
 	static int icounter = 0;
 	icounter++;
 	float counter = icounter * 1.0f;
@@ -398,7 +383,6 @@ void renderFrame() {
 	}
 	dpop();
 
-
 	// add color.
 	dpush("Add Color");
 	{
@@ -419,7 +403,6 @@ void renderFrame() {
 			GL_C(glUniform1i(accTexLocation, 0));
 			GL_C(glActiveTexture(GL_TEXTURE0 + 0));
 			GL_C(glBindTexture(GL_TEXTURE_2D, cTempTex));
-
 
 			GL_C(glUniform1f(acCounterLocation, float(counter)));
 
@@ -551,64 +534,6 @@ void renderFrame() {
 	}
 	dpop();
 
-	/*
-	dpush("Boudary Block");
-	{
-	GL_C(glBindFramebuffer(GL_FRAMEBUFFER, fbo0));
-	GL_C(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,
-	uEndTex, 0	));
-	GL_C(glBindFramebuffer(GL_FRAMEBUFFER, 0));
-
-	GL_C(glBindFramebuffer(GL_FRAMEBUFFER, fbo0));
-	{
-	GL_C(glClearColor(0.0f, 0.0f, 0.0f, 0.0f));
-	GL_C(glClear(GL_COLOR_BUFFER_BIT));
-
-	GL_C(glUseProgram(boundaryShader));
-
-	GL_C(glUniform1i(bswTexSizeLocation, 1));
-	GL_C(glActiveTexture(GL_TEXTURE0 + 1));
-	GL_C(glBindTexture(GL_TEXTURE_2D, uEndTempTex));
-
-	vec2 delta = vec2(1.0f / float(frameW), 1.0f / float(frameH));
-
-	GL_C(glUniform2f(bsPosOffsetLocation, delta.x, delta.y));
-	GL_C(glUniform2f(bsPosSizeLocation, 1.0 - 2.0 * delta.x, 1.0 - 2.0 * delta.y));
-	GL_C(glUniform2f(bsSampleOffsetLocation, 0.0f, 0.0f));
-	GL_C(glUniform1f(bsScaleLocation, 1.0f));
-
-	RenderFullscreen();
-
-
-	GL_C(glUniform2f(bsPosOffsetLocation, 0.0f, 0.0f));
-	GL_C(glUniform2f(bsPosSizeLocation, 1.0f, delta.y));
-	GL_C(glUniform2f(bsSampleOffsetLocation, 0.0f, +delta.y));
-	GL_C(glUniform1f(bsScaleLocation, -1.0f));
-	RenderFullscreen();
-
-	GL_C(glUniform2f(bsPosOffsetLocation, 0.0f, 1.0f - delta.y));
-	GL_C(glUniform2f(bsPosSizeLocation, 1.0f, delta.y));
-	GL_C(glUniform2f(bsSampleOffsetLocation, 0.0f, -delta.y));
-	GL_C(glUniform1f(bsScaleLocation, -1.0f));
-	RenderFullscreen();
-
-	GL_C(glUniform2f(bsPosOffsetLocation, 0.0f, 0.0f));
-	GL_C(glUniform2f(bsPosSizeLocation, delta.x, 1.0f));
-	GL_C(glUniform2f(bsSampleOffsetLocation, +delta.x, 0.0f));
-	GL_C(glUniform1f(bsScaleLocation, -1.0f));
-	RenderFullscreen();
-
-	GL_C(glUniform2f(bsPosOffsetLocation, 1.0f - delta.x, 0.0));
-	GL_C(glUniform2f(bsPosSizeLocation, delta.x, 1.0f));
-	GL_C(glUniform2f(bsSampleOffsetLocation, -delta.x, 0.0f));
-	GL_C(glUniform1f(bsScaleLocation, -1.0f));
-	RenderFullscreen();
-	}
-	GL_C(glBindFramebuffer(GL_FRAMEBUFFER, 0));
-	}
-	dpop();
-	*/
-
 	dpush("Rendering");
 	{
 		GL_C(glClearColor(0.0f, 0.0f, 0.0f, 0.0f));
@@ -638,13 +563,11 @@ void renderFrame() {
 	}
 }
 
-#ifdef WIN32
-void HandleInput() {
+void handleInput() {
 	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
 		glfwSetWindowShouldClose(window, GLFW_TRUE);
 	}
 }
-#endif
 
 void checkFbo() {
 	// make sure nothing went wrong:
@@ -660,7 +583,7 @@ GLuint createFloatTexture(float* data, GLint internalFormat, GLint format, GLenu
 
 	GL_C(glGenTextures(1, &tex));
 	GL_C(glBindTexture(GL_TEXTURE_2D, tex));
-	GL_C(glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, frameW, frameH, 0, format, type, data));
+	GL_C(glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, fbWidth, fbHeight, 0, format, type, data));
 
 	GL_C(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR));
 	GL_C(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR));
@@ -687,6 +610,7 @@ GLuint loadTexture(const char* filepath) {
 		STBI_default));
 
 	GLint format = 0, internalFormat = 0;
+	
 	switch (depth) {
 
 	case STBI_rgb: {
@@ -718,27 +642,16 @@ GLuint loadTexture(const char* filepath) {
 
 void setupGraphics(int w, int h) {
 
-#ifdef WIN32
 	initGlfw();
-#else
-	fbWidth = w;
-	fbHeight = h;
-#endif
 
-	frameW = fbWidth;
-	frameH = fbHeight;
-
-	//delta = vec2(1.0f / frameW, 1.0f / frameH);
-
-	// frameFbo
 	{
 
 		{
-			float* cData = new float[frameW * frameH * 4];
-			for (int y = 0; y < frameH; ++y) {
-				for (int x = 0; x < frameW; ++x) {
-					float fx = (float)x / (float)frameW;
-					float fy = (float)y / (float)frameH;
+			float* cData = new float[fbWidth * fbHeight * 4];
+			for (int y = 0; y < fbHeight; ++y) {
+				for (int x = 0; x < fbWidth; ++x) {
+					float fx = (float)x / (float)fbWidth;
+					float fy = (float)y / (float)fbHeight;
 
 					float r = 1.0f;
 					float g = 0.0f;
@@ -756,29 +669,29 @@ void setupGraphics(int w, int h) {
 					b = fmaxf(fx, fy);
 					b = 0.0f;
 
-					cData[4 * (frameW * y + x) + 0] = r;
-					cData[4 * (frameW * y + x) + 1] = g;
-					cData[4 * (frameW * y + x) + 2] = b;
-					cData[4 * (frameW * y + x) + 3] = 1.0f;
+					cData[4 * (fbWidth * y + x) + 0] = r;
+					cData[4 * (fbWidth * y + x) + 1] = g;
+					cData[4 * (fbWidth * y + x) + 2] = b;
+					cData[4 * (fbWidth * y + x) + 3] = 1.0f;
 
 				}
 			}
 
-			float* zeroData = new float[frameW * frameH * 4];
-			for (int y = 0; y < frameH; ++y) {
-				for (int x = 0; x < frameW; ++x) {
+			float* zeroData = new float[fbWidth * fbHeight * 4];
+			for (int y = 0; y < fbHeight; ++y) {
+				for (int x = 0; x < fbWidth; ++x) {
 
-					zeroData[4 * (frameW * y + x) + 0] = 0.0f;
-					zeroData[4 * (frameW * y + x) + 1] = 0.0f;
-					zeroData[4 * (frameW * y + x) + 2] = 0.0f;
-					zeroData[4 * (frameW * y + x) + 3] = 0.0f;
+					zeroData[4 * (fbWidth * y + x) + 0] = 0.0f;
+					zeroData[4 * (fbWidth * y + x) + 1] = 0.0f;
+					zeroData[4 * (fbWidth * y + x) + 2] = 0.0f;
+					zeroData[4 * (fbWidth * y + x) + 3] = 0.0f;
 				}
 			}
 
 			cBegTex = createFloatTexture(zeroData, GL_RGBA32F, GL_RGBA, GL_FLOAT);
 
 
-			//	GL_C(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, frameW, frameH, 0, GL_RGBA, GL_FLOAT, data));
+			//	GL_C(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, fbWidth, fbHeight, 0, GL_RGBA, GL_FLOAT, data));
 
 			uBegTex = createFloatTexture(zeroData, GL_RG32F, GL_RG, GL_FLOAT);
 			uEndTex = createFloatTexture(zeroData, GL_RG32F, GL_RG, GL_FLOAT);
@@ -788,7 +701,6 @@ void setupGraphics(int w, int h) {
 			wTex = createFloatTexture(zeroData, GL_RG32F, GL_RG, GL_FLOAT);
 			wTempTex = createFloatTexture(zeroData, GL_RG32F, GL_RG, GL_FLOAT);
 			wDivergenceTex = createFloatTexture(zeroData, GL_RG32F, GL_RG, GL_FLOAT);
-			debugTex = createFloatTexture(zeroData, GL_RGBA32F, GL_RGBA, GL_FLOAT);
 			uEndTempTex = createFloatTexture(zeroData, GL_RG32F, GL_RG, GL_FLOAT);
 
 			pTempTex[0] = createFloatTexture(zeroData, GL_RG32F, GL_RG, GL_FLOAT);
@@ -812,7 +724,7 @@ void setupGraphics(int w, int h) {
         }
 		)");
 
-	std::string deltaCode = std::string("const vec2 delta = vec2(") + std::to_string(1.0f / float(frameW)) + std::string(",") + std::to_string(1.0f / float(frameH)) + ");\n";
+	std::string deltaCode = std::string("const vec2 delta = vec2(") + std::to_string(1.0f / float(fbWidth)) + std::string(",") + std::to_string(1.0f / float(fbHeight)) + ");\n";
 
 	std::string fragDefines = "";
 	fragDefines += deltaCode;
@@ -1275,42 +1187,6 @@ discard;
 	wtOffsetLocation = glGetUniformLocation(writeTexShader, "uOffset");
 	wtSizeLocation = glGetUniformLocation(writeTexShader, "uSize");
 
-	boundaryShader = loadNormalShader(
-
-		R"(
-	uniform vec2 uPosOffset;
-	uniform vec2 uPosSize;
-
-	vec2 remapPos(vec2 p) { return uPosOffset + p * uPosSize; }
-)" +
-
-fullscreenVs,
-deltaCode +
-std::string(R"(
-        in vec2 fsUv;
-        out vec4 FragColor;
-
-        uniform sampler2D uwTex;
-	    uniform vec2 uSampleOffset;
-	    uniform float uScale;
-
-		void main()
-		{
-       //   if(uScale > 0.9) {
-
-          FragColor = uScale * texture(uwTex, fsUv + uSampleOffset);
-     //     } else {
-       //      FragColor = vec4( fsUv + uSampleOffset, 0.0, 1.0);
-     //      }
-		}
-		)")
-	);
-	bsPosOffsetLocation = glGetUniformLocation(boundaryShader, "uPosOffset");
-	bsPosSizeLocation = glGetUniformLocation(boundaryShader, "uPosSize");
-	bswTexSizeLocation = glGetUniformLocation(boundaryShader, "uwTex");
-	bsSampleOffsetLocation = glGetUniformLocation(boundaryShader, "uSampleOffset");
-	bsScaleLocation = glGetUniformLocation(boundaryShader, "uScale");
-
 	visShader = loadNormalShader(
 
 		std::string(R"(
@@ -1362,13 +1238,7 @@ std::string(R"(
 		GL_C(glBindBuffer(GL_ARRAY_BUFFER, fullscreenVertexVbo));
 		GL_C(glBufferData(GL_ARRAY_BUFFER, sizeof(FullscreenVertex)*vertices.size(), (float*)vertices.data(), GL_STATIC_DRAW));
 	}
-
-	printf("start loading extension!\n");
-
-	printf("Init opengl\n");
 }
-
-
 
 int main(int argc, char** argv) {
 	setupGraphics(0, 0);
@@ -1383,7 +1253,7 @@ int main(int argc, char** argv) {
 
 		glfwPollEvents();
 
-		HandleInput();
+		handleInput();
 		
 		renderFrame();
 
