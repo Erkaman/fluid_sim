@@ -16,16 +16,10 @@
 #include "stb_image.h"
 
 #include <glad/glad.h>
-
 #include <GLFW/glfw3.h>
 
-GLFWwindow* window;
 
-#define  LOGI(...)  printf(__VA_ARGS__)
-#define  LOGE(...)  printf(__VA_ARGS__)
-
-
-inline void CheckOpenGLError(const char* stmt, const char* fname, int line)
+inline void checkOpenGLError(const char* stmt, const char* fname, int line)
 {
 	GLenum err = glGetError();
 	if (err != GL_NO_ERROR) {
@@ -42,13 +36,13 @@ inline void CheckOpenGLError(const char* stmt, const char* fname, int line)
 // helper macro that checks for GL errors.
 #define GL_C(stmt) do {					\
 	stmt;						\
-	CheckOpenGLError(#stmt, __FILE__, __LINE__);	\
+	checkOpenGLError(#stmt, __FILE__, __LINE__);	\
     } while (0)
 #endif
 
 #define DEBUG_GROUPS 1
 
-inline char* GetShaderLogInfo(GLuint shader) {
+inline char* getShaderLogInfo(GLuint shader) {
 	GLint len;
 	GLsizei actualLen;
 	GL_C(glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &len));
@@ -57,7 +51,7 @@ inline char* GetShaderLogInfo(GLuint shader) {
 	return infoLog;
 }
 
-inline GLuint CreateShaderFromString(const std::string& shaderSource, const GLenum shaderType) {
+inline GLuint createShaderFromString(const std::string& shaderSource, const GLenum shaderType) {
 	GLuint shader;
 
 	GL_C(shader = glCreateShader(shaderType));
@@ -68,22 +62,21 @@ inline GLuint CreateShaderFromString(const std::string& shaderSource, const GLen
 	GLint compileStatus;
 	GL_C(glGetShaderiv(shader, GL_COMPILE_STATUS, &compileStatus));
 	if (compileStatus != GL_TRUE) {
-		LOGI("Could not compile shader\n\n%s \n\n%s\n", shaderSource.c_str(),
-			GetShaderLogInfo(shader));
+		printf("Could not compile shader\n\n%s \n\n%s\n", shaderSource.c_str(),
+			getShaderLogInfo(shader));
 		exit(1);
 	}
 
 	return shader;
 }
 
-
-inline GLuint LoadNormalShader(const std::string& vsSource, const std::string& fsShader) {
+inline GLuint loadNormalShader(const std::string& vsSource, const std::string& fsShader) {
 
 	std::string prefix = "";
 	prefix = "#version 330\n";
 
-	GLuint vs = CreateShaderFromString(prefix + vsSource, GL_VERTEX_SHADER);
-	GLuint fs = CreateShaderFromString(prefix + fsShader, GL_FRAGMENT_SHADER);
+	GLuint vs = createShaderFromString(prefix + vsSource, GL_VERTEX_SHADER);
+	GLuint fs = createShaderFromString(prefix + fsShader, GL_FRAGMENT_SHADER);
 
 	GLuint shader = glCreateProgram();
 	glAttachShader(shader, vs);
@@ -93,7 +86,7 @@ inline GLuint LoadNormalShader(const std::string& vsSource, const std::string& f
 	GLint Result;
 	glGetProgramiv(shader, GL_LINK_STATUS, &Result);
 	if (Result == GL_FALSE) {
-		LOGI("Could not link shader \n\n%s\n", GetShaderLogInfo(shader));
+		printf("Could not link shader \n\n%s\n", getShaderLogInfo(shader));
 		exit(1);
 	}
 
@@ -106,12 +99,12 @@ inline GLuint LoadNormalShader(const std::string& vsSource, const std::string& f
 	return shader;
 }
 
+GLFWwindow* window;
+
 const int WINDOW_WIDTH = 256 * 4;
 const int WINDOW_HEIGHT = 256 * 4;
 
 GLuint vao;
-
-//float timeStep = 1.0 / 60.0f;
 
 int fbWidth, fbHeight;
 
@@ -120,10 +113,6 @@ int frameW, frameH;
 struct FullscreenVertex {
 	float x, y; // position
 };
-
-//vec2 delta;
-
-
 GLuint fullscreenVertexVbo;
 
 GLuint advectShader;
@@ -138,7 +127,6 @@ GLuint jsBetaLocation;
 
 GLuint divergenceShader;
 GLuint dswTexLocation;
-
 
 GLuint visShader;
 GLuint vsTexLocation;
@@ -167,15 +155,13 @@ GLuint wtcTexLocation;
 GLuint wtOffsetLocation;
 GLuint wtSizeLocation;
 
-
 GLuint fbo0;
-GLuint fbo1;
 
-// velocity.
+// velocity tex.
 GLuint uBegTex;
 GLuint uEndTex;
 
-// color.
+// color tex
 GLuint cBegTex;
 GLuint cEndTex;
 GLuint cTempTex;
@@ -188,27 +174,17 @@ GLuint pTex;
 GLuint debugTex;
 GLuint uEndTempTex;
 
-GLuint debugDataTex;
-GLuint debugDataTex2;
-
 GLuint monaTex;
 GLuint screamTex;
 
-void error_callback(int error, const char* description)
-{
-	puts(description);
-}
-
 #ifdef WIN32
-void InitGlfw() {
+void initGlfw() {
 	if (!glfwInit())
 		exit(EXIT_FAILURE);
 
-	glfwSetErrorCallback(error_callback);
-
 	glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 	glfwWindowHint(GLFW_SAMPLES, 0);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
@@ -220,8 +196,7 @@ void InitGlfw() {
 	}
 	glfwMakeContextCurrent(window);
 
-	glfwSetWindowPos(window, 50, 50);
-
+	glfwSetWindowPos(window, 20, 20);
 
 	// load GLAD.
 	gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
@@ -234,7 +209,7 @@ void InitGlfw() {
 }
 #endif
 
-void RenderFullscreen() {
+void renderFullscreen() {
 
 	GL_C(glDrawArrays(GL_TRIANGLES, 0, 6));
 }
@@ -270,7 +245,7 @@ void computeDivergence(GLuint src, GLuint dst) {
 			GL_C(glActiveTexture(GL_TEXTURE0 + 0));
 			GL_C(glBindTexture(GL_TEXTURE_2D, src));
 
-			RenderFullscreen();
+			renderFullscreen();
 		}
 		GL_C(glBindFramebuffer(GL_FRAMEBUFFER, 0));
 	}
@@ -296,7 +271,7 @@ void advect(GLuint src, GLuint u, GLuint dst) {
 		GL_C(glActiveTexture(GL_TEXTURE0 + 1));
 		GL_C(glBindTexture(GL_TEXTURE_2D, src));
 
-		RenderFullscreen();
+		renderFullscreen();
 	}
 	GL_C(glBindFramebuffer(GL_FRAMEBUFFER, 0));
 }
@@ -332,7 +307,7 @@ GLuint  jacobi(const int nIter, GLuint bTex, GLuint* tempTex) {
 			GL_C(glUniform2f(jsBetaLocation, 1.0 / 4.0, 1.0 / 4.0));
 
 
-			RenderFullscreen();
+			renderFullscreen();
 		}
 		GL_C(glBindFramebuffer(GL_FRAMEBUFFER, 0));
 	}
@@ -417,7 +392,7 @@ void renderFrame() {
 
 			GL_C(glUniform1f(fsCounterLocation, float(counter)));
 
-			RenderFullscreen();
+			renderFullscreen();
 		}
 		GL_C(glBindFramebuffer(GL_FRAMEBUFFER, 0));
 	}
@@ -448,7 +423,7 @@ void renderFrame() {
 
 			GL_C(glUniform1f(acCounterLocation, float(counter)));
 
-			RenderFullscreen();
+			renderFullscreen();
 		}
 		GL_C(glBindFramebuffer(GL_FRAMEBUFFER, 0));
 	}
@@ -479,7 +454,7 @@ void renderFrame() {
 				GL_C(glUniform2f(wtOffsetLocation, -1.0f, -1.0f));
 				GL_C(glUniform2f(wtSizeLocation, +2.0f, +2.0f));
 
-				RenderFullscreen();
+				renderFullscreen();
 			}
 			GL_C(glBindFramebuffer(GL_FRAMEBUFFER, 0));
 		}
@@ -509,7 +484,7 @@ void renderFrame() {
 				GL_C(glUniform2f(wtOffsetLocation, -1.0f, -1.0f));
 				GL_C(glUniform2f(wtSizeLocation, +2.0f, +2.0f));
 
-				RenderFullscreen();
+				renderFullscreen();
 			}
 			GL_C(glBindFramebuffer(GL_FRAMEBUFFER, 0));
 		}
@@ -567,7 +542,7 @@ void renderFrame() {
 				GL_C(glActiveTexture(GL_TEXTURE0 + 1));
 				GL_C(glBindTexture(GL_TEXTURE_2D, pTex));
 
-				RenderFullscreen();
+				renderFullscreen();
 			}
 			GL_C(glBindFramebuffer(GL_FRAMEBUFFER, 0));
 		}
@@ -645,7 +620,7 @@ void renderFrame() {
 		GL_C(glActiveTexture(GL_TEXTURE0 + 0));
 		GL_C(glBindTexture(GL_TEXTURE_2D, cEndTex));
 
-		RenderFullscreen();
+		renderFullscreen();
 	}
 	dpop();
 
@@ -676,7 +651,7 @@ void checkFbo() {
 	GLenum status;
 	GL_C(status = glCheckFramebufferStatus(GL_FRAMEBUFFER));
 	if (status != GL_FRAMEBUFFER_COMPLETE) {
-		LOGE("Framebuffer not complete. Status: 0x%08x\n", status);
+		printf("Framebuffer not complete. Status: 0x%08x\n", status);
 	}
 }
 
@@ -744,7 +719,7 @@ GLuint loadTexture(const char* filepath) {
 void setupGraphics(int w, int h) {
 
 #ifdef WIN32
-	InitGlfw();
+	initGlfw();
 #else
 	fbWidth = w;
 	fbHeight = h;
@@ -818,26 +793,9 @@ void setupGraphics(int w, int h) {
 
 			pTempTex[0] = createFloatTexture(zeroData, GL_RG32F, GL_RG, GL_FLOAT);
 			pTempTex[1] = createFloatTexture(zeroData, GL_RG32F, GL_RG, GL_FLOAT);
-
-			float r = 1.0f / (1.0f);
-			//float r = 1.0f;
-
-			zeroData[4 * (frameW * 10 + 10) + 0] = (-4.0 * 5.0f) * r;
-
-			zeroData[4 * (frameW * 11 + 10) + 0] = 5.0f * r;
-			zeroData[4 * (frameW * 9 + 10) + 0] = 5.0f * r;
-			zeroData[4 * (frameW * 10 + 11) + 0] = 5.0f * r;
-			zeroData[4 * (frameW * 10 + 9) + 0] = 5.0f * r;
-
-			debugDataTex = createFloatTexture(zeroData, GL_RGBA32F, GL_RGBA, GL_FLOAT);
-			debugDataTex2 = createFloatTexture(zeroData, GL_RGBA32F, GL_RGBA, GL_FLOAT);
 		}
 
-
-		{
-			GL_C(glGenFramebuffers(1, &fbo0));
-			GL_C(glGenFramebuffers(1, &fbo1));
-		}
+		GL_C(glGenFramebuffers(1, &fbo0));
 	}
 
 	monaTex = loadTexture("../smallmona.jpg");
@@ -870,8 +828,7 @@ void setupGraphics(int w, int h) {
 	vertDefines += remapPosCode;
 	//	vertDefines += remapUvCode;
 
-
-	advectShader = LoadNormalShader(
+	advectShader = loadNormalShader(
 		vertDefines +
 		fullscreenVs,
 		fragDefines +
@@ -895,7 +852,7 @@ void setupGraphics(int w, int h) {
 	asuTexLocation = glGetUniformLocation(advectShader, "uuTex");
 	assTexLocation = glGetUniformLocation(advectShader, "usTex");
 
-	jacobiShader = LoadNormalShader(
+	jacobiShader = loadNormalShader(
 		vertDefines +
 		fullscreenVs,
 		fragDefines +
@@ -929,7 +886,7 @@ void setupGraphics(int w, int h) {
 	jsBetaLocation = glGetUniformLocation(jacobiShader, "uBeta");
 	jsAlphaLocation = glGetUniformLocation(jacobiShader, "uAlpha");
 
-	divergenceShader = LoadNormalShader(
+	divergenceShader = loadNormalShader(
 		vertDefines +
 		fullscreenVs,
 		fragDefines +
@@ -955,7 +912,7 @@ void setupGraphics(int w, int h) {
 	);
 	dswTexLocation = glGetUniformLocation(divergenceShader, "uwTex");
 
-	gradientSubtractionShader = LoadNormalShader(
+	gradientSubtractionShader = loadNormalShader(
 		vertDefines +
 		fullscreenVs,
 		fragDefines +
@@ -1223,7 +1180,7 @@ if(uCounter > 440) {
 
 )");
 
-	forceShader = LoadNormalShader(
+	forceShader = loadNormalShader(
 		vertDefines +
 		fullscreenVs,
 		fragDefines +
@@ -1250,7 +1207,7 @@ if(uCounter > 440) {
 	fswTexLocation = glGetUniformLocation(forceShader, "uwTex");
 	fsCounterLocation = glGetUniformLocation(forceShader, "uCounter");
 
-	addColorShader = LoadNormalShader(
+	addColorShader = loadNormalShader(
 		vertDefines +
 		fullscreenVs,
 		fragDefines +
@@ -1273,7 +1230,7 @@ if(uCounter > 440) {
 	accTexLocation = glGetUniformLocation(addColorShader, "ucTex");
 	acCounterLocation = glGetUniformLocation(addColorShader, "uCounter");
 
-	writeTexShader = LoadNormalShader(
+	writeTexShader = loadNormalShader(
 		//vertDefines +
 
 		R"(
@@ -1318,7 +1275,7 @@ discard;
 	wtOffsetLocation = glGetUniformLocation(writeTexShader, "uOffset");
 	wtSizeLocation = glGetUniformLocation(writeTexShader, "uSize");
 
-	boundaryShader = LoadNormalShader(
+	boundaryShader = loadNormalShader(
 
 		R"(
 	uniform vec2 uPosOffset;
@@ -1354,7 +1311,7 @@ std::string(R"(
 	bsSampleOffsetLocation = glGetUniformLocation(boundaryShader, "uSampleOffset");
 	bsScaleLocation = glGetUniformLocation(boundaryShader, "uScale");
 
-	visShader = LoadNormalShader(
+	visShader = loadNormalShader(
 
 		std::string(R"(
        layout(location = 0) in vec3 vsPos;
@@ -1406,9 +1363,9 @@ std::string(R"(
 		GL_C(glBufferData(GL_ARRAY_BUFFER, sizeof(FullscreenVertex)*vertices.size(), (float*)vertices.data(), GL_STATIC_DRAW));
 	}
 
-	LOGI("start loading extension!\n");
+	printf("start loading extension!\n");
 
-	LOGI("Init opengl\n");
+	printf("Init opengl\n");
 }
 
 
