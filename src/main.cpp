@@ -877,6 +877,7 @@ void emit(vec2 eDir, vec2 ePos, vec3 pa, vec3 pb, vec3 pc, vec3 pd) {
   float t = max(uRad - dist, 0.0)/uRad;
 
   F +=  (t) * uForce;
+
   
 {
   float p = 0.2;
@@ -921,7 +922,7 @@ void circleEmitter() {
   }
 }
 
-void goghEmitter(vec2 ePos, vec2 eDir, float myc) {
+void screamEmitter(vec2 ePos, vec2 eDir, float myc) {
    
 
   uRad = 0.002f;
@@ -947,13 +948,7 @@ void goghEmitter(vec2 ePos, vec2 eDir, float myc) {
 
 }
 
-void emitter() {
-  //rainbowEmit();
-
- circleEmitter();
-
-// single mona lisa that covers screen.
-/*
+void monaLisa() {
 if(uCounter > 3) {
  
   uRad = 0.005f;
@@ -971,64 +966,76 @@ if(uCounter > 3) {
     }
   }
 }
-*/
+}
 
-/*
+void theScream() {
+
 if(uCounter > 3) {
- goghEmitter(vec2(0.5, 0.5), normalize(vec2(0.4, 0.8)), uCounter-3);   
+ screamEmitter(vec2(0.5, 0.5), normalize(vec2(0.4, 0.8)), uCounter-3);   
 }
 if(uCounter > 60) {
- goghEmitter(vec2(0.3, 0.3), normalize(vec2(-0.2, 0.4)), uCounter-60);   
+ screamEmitter(vec2(0.3, 0.3), normalize(vec2(-0.2, 0.4)), uCounter-60);   
 }
 if(uCounter > 90) {
- goghEmitter(vec2(+0.8, 0.2), normalize(vec2(-0.4, +0.4)), uCounter-90);   
+ screamEmitter(vec2(+0.8, 0.2), normalize(vec2(-0.4, +0.4)), uCounter-90);   
 }
 if(uCounter > 130) {
- goghEmitter(vec2(+0.5, 0.96), normalize(vec2(0.1, -1.0)), uCounter-130);   
+ screamEmitter(vec2(+0.5, 0.96), normalize(vec2(0.1, -1.0)), uCounter-130);   
 }
 if(uCounter > 160) {
- goghEmitter(vec2(+0.1, 0.1), normalize(vec2(0.3, +0.08)), uCounter-160);   
+ screamEmitter(vec2(+0.1, 0.1), normalize(vec2(0.3, +0.08)), uCounter-160);   
 }
 
 if(uCounter > 200) {
- goghEmitter(vec2(+0.19, 0.98), normalize(vec2(0.1, -0.4)), uCounter-200);   
+ screamEmitter(vec2(+0.19, 0.98), normalize(vec2(0.1, -0.4)), uCounter-200);   
 }
 if(uCounter > 250) {
- goghEmitter(vec2(+0.01, 0.01), normalize(vec2(0.1, 0.1)), uCounter-250);   
+ screamEmitter(vec2(+0.01, 0.01), normalize(vec2(0.1, 0.1)), uCounter-250);   
 }
 if(uCounter > 300) {
- goghEmitter(vec2(+0.8, 0.1), normalize(vec2(-0.1, 0.8)), uCounter-300);   
+ screamEmitter(vec2(+0.8, 0.1), normalize(vec2(-0.1, 0.8)), uCounter-300);   
 }
 
 if(uCounter > 320) {
- goghEmitter(vec2(+0.2, 0.9), normalize(vec2(0.0, -0.1)), uCounter-320);   
+ screamEmitter(vec2(+0.2, 0.9), normalize(vec2(0.0, -0.1)), uCounter-320);   
 }
 
 if(uCounter > 330) {
- goghEmitter(vec2(+0.5, 0.5), normalize(vec2(-0.6, 0.0)), uCounter-330);   
+ screamEmitter(vec2(+0.5, 0.5), normalize(vec2(-0.6, 0.0)), uCounter-330);   
 }
 
 if(uCounter > 350) {
- goghEmitter(vec2(+0.1, 0.8), normalize(vec2(1.0, 0.0)), uCounter-350);   
+ screamEmitter(vec2(+0.1, 0.8), normalize(vec2(1.0, 0.0)), uCounter-350);   
 }
 if(uCounter > 360) {
- goghEmitter(vec2(+0.1, 0.1), normalize(vec2(1.0, 0.0)), uCounter-360);   
+ screamEmitter(vec2(+0.1, 0.1), normalize(vec2(1.0, 0.0)), uCounter-360);   
 }
 if(uCounter > 380) {
- goghEmitter(vec2(+0.9, 0.9), normalize(vec2(-1.0, 0.0)), uCounter-380);   
+ screamEmitter(vec2(+0.9, 0.9), normalize(vec2(-1.0, 0.0)), uCounter-380);   
 }
 
 if(uCounter > 400) {
- goghEmitter(vec2(+0.5, 0.04), normalize(vec2(0.0, 0.9)), uCounter-400);   
+ screamEmitter(vec2(+0.5, 0.04), normalize(vec2(0.0, 0.9)), uCounter-400);   
 }
 if(uCounter > 420) {
- goghEmitter(vec2(+0.89, 0.9), normalize(vec2(0.0, -0.9)), uCounter-420);   
+ screamEmitter(vec2(+0.89, 0.9), normalize(vec2(0.0, -0.9)), uCounter-420);   
 }
 
 if(uCounter > 440) {
- goghEmitter(vec2(+0.11, 0.1), normalize(vec2(0.0, +0.9)), uCounter-440);   
+ screamEmitter(vec2(+0.11, 0.1), normalize(vec2(0.0, +0.9)), uCounter-440);   
 }
-*/
+}
+
+void emitter() {
+  rainbowEmit();
+
+ //circleEmitter();
+
+// single mona lisa that covers screen.
+
+//monaLisa();
+
+//theScream();
 
 }
 
