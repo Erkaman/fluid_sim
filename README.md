@@ -11,7 +11,7 @@ article. The "diffusion" and "boundary conditions" steps of the article are not 
 Finally, note that the primary focus was on making flashy simulations, and not on physical realism.
 
 **The code is minimalistic and is written in only ~1000LOC of C++, and uses only OpenGL and no frameworks whatsoever,
-so the code should be readable.**
+so the code should be readable. The source code can be found in `src/main.cpp`**
 
 # Video
 
