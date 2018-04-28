@@ -129,6 +129,7 @@ GLuint dswTexLocation;
 
 GLuint visShader;
 GLuint vsTexLocation;
+GLuint vsBlendLocation;
 
 GLuint gradientSubtractionShader;
 GLuint gsspTexLocation;
@@ -172,9 +173,11 @@ GLuint screamTex;
 
 enum SimulationStage {
 	CIRCLE_SIM = 0,
-	MONA_LISA_SIM,
-	THE_SCREAM_SIM,
-	RAINBOW_SIM,
+	FADE_IN_MONA_LISA_SIM = 1,
+
+	MONA_LISA_SIM = 2,
+	THE_SCREAM_SIM = 3,
+	RAINBOW_SIM = 4,
 };
 
 SimulationStage curSim = CIRCLE_SIM;
@@ -332,6 +335,8 @@ void dpop() {
 
 
 void renderFrame() {
+	float blend = 1.0f;
+
 	// setup some reasonable default GL state.
 	GL_C(glDisable(GL_DEPTH_TEST));
 	GL_C(glDepthMask(false));
@@ -364,7 +369,14 @@ void renderFrame() {
 	static int icounter = 0;
 	icounter++;
 	
-	if (icounter == 300 && curSim == CIRCLE_SIM) {
+	if (icounter > 400 && icounter < 700 && curSim == CIRCLE_SIM) {
+		float t = 1.0 - ((float)icounter - 400.0f) / 300.0f;
+		blend = t;
+		
+		//float f = t - 1.0;
+		//blend =  f * f * f + 1.0;
+	}
+	else if (icounter == 700 && curSim == CIRCLE_SIM) {
 		
 		clearTexture(wTex);
 	
@@ -397,12 +409,22 @@ void renderFrame() {
 			GL_C(glBindFramebuffer(GL_FRAMEBUFFER, 0));
 		}
 		dpop();
+		blend = 0.0f;
+		icounter = 0;
+		curSim = FADE_IN_MONA_LISA_SIM;
+	} else if (icounter > 0 && icounter < 80 && curSim == FADE_IN_MONA_LISA_SIM) {
+		float t =((float)icounter) / 80;
+		
+		blend =  pow(t, 3.0);
 
+		//blend = t;
+
+	} else if (icounter == 80 && curSim == FADE_IN_MONA_LISA_SIM) {
 		icounter = 0;
 		curSim = MONA_LISA_SIM;
+		blend = 1.0f;
 	}
-
-	if (icounter == 300 && curSim == MONA_LISA_SIM) {
+	else if (icounter == 300 && curSim == MONA_LISA_SIM) {
 		clearTexture(wTex);
 
 		dpush("Write Scream");
@@ -432,13 +454,12 @@ void renderFrame() {
 		dpop();
 		
 		icounter = 0;
+		blend = 1.0f;
 		curSim = THE_SCREAM_SIM;
-	}
-	
-	if (icounter == 300 && curSim == THE_SCREAM_SIM) {
+	} else if (icounter == 300 && curSim == THE_SCREAM_SIM) {
 		clearTexture(wTex);
 		clearTexture(cTempTex);
-
+		blend = 1.0f;
 		icounter = 0;
 		curSim = RAINBOW_SIM;
 	}
@@ -574,12 +595,15 @@ void renderFrame() {
 		GL_C(glUniform1i(vsTexLocation, 0));
 		GL_C(glActiveTexture(GL_TEXTURE0 + 0));
 		GL_C(glBindTexture(GL_TEXTURE_2D, cEndTex));
-
+		
+		GL_C(glUniform1f(vsBlendLocation, blend));
+		
 		renderFullscreen();
 	}
 	dpop();
 
-	//if (counter <= 30000) 
+	// uBegTex is velocity at beginning of frame, and uEndTex is velocity at end of frame.
+	// we ping pong between these two textures below.(and do same for color)
 	{
 
 		// swap.
@@ -1062,11 +1086,11 @@ void emitter() {
 if(uSim == 0) {
   circleEmitter();
   
-} else if(uSim == 1) {
-  monaLisa();
 } else if(uSim == 2) {
+  monaLisa();
+} else if(uSim == 3) {
   theScream();
-} else {
+} else if(uSim == 4) {
   rainbowEmit();
 }
 
@@ -1171,17 +1195,19 @@ if(uSim == 0) {
         in vec2 fsUv;
 
         uniform sampler2D uTex;
+        uniform float uBlend;
 
         out vec4 FragColor;
   
 		void main()
 		{
-          FragColor = vec4(pow(texture2D(uTex, fsUv).rgb, vec3(1.0 / 2.2)), 1.0);
+          FragColor = vec4(pow(texture2D(uTex, fsUv).rgb * uBlend, vec3(1.0 / 2.2)), 1.0);
 
 		}
 		)")
 	);
 	vsTexLocation = glGetUniformLocation(visShader, "uTex");
+	vsBlendLocation = glGetUniformLocation(visShader, "uBlend");
 
 	// create vertices of fullscreen quad.
 	{
