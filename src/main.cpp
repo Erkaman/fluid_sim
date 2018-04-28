@@ -674,21 +674,17 @@ void setupGraphics() {
           gl_Position =  vec4(2.0 * vsPos.xy - vec2(1.0), 0.0, 1.0);
         }
 		)");
-
+	
+	// size of a pixel.
 	std::string deltaCode = std::string("const vec2 delta = vec2(") + std::to_string(1.0f / float(fbWidth)) + std::string(",") + std::to_string(1.0f / float(fbHeight)) + ");\n";
 	
-	std::string fragDefines = "";
-	fragDefines += deltaCode;
+	std::string defines = "";
+	defines += deltaCode; // common definitions that we append in the beginning of every shader. 
 
-	//std::string remapUvCode = std::string("vec2 remapUv(vec2 p) { return 1.5*delta + p * (1.0 - 3.0 * delta); }\n");
-
-	std::string vertDefines = "";
-	vertDefines += deltaCode;
-	
 	advectShader = loadNormalShader(
-		vertDefines +
+		defines +
 		fullscreenVs,
-		fragDefines +
+		defines +
 		std::string(R"(
 
         in vec2 fsUv;
@@ -700,6 +696,7 @@ void setupGraphics() {
 
 		void main()
 		{
+          // 1.0 / 60.0 is time step. 
           vec2 tc = fsUv - delta * (1.0 / 60.0) * texture(uuTex, fsUv).xy;
           FragColor = texture(usTex, tc);
 
@@ -710,9 +707,9 @@ void setupGraphics() {
 	assTexLocation = glGetUniformLocation(advectShader, "usTex");
 
 	jacobiShader = loadNormalShader(
-		vertDefines +
+		defines +
 		fullscreenVs,
-		fragDefines +
+		defines +
 		std::string(R"(
 
         in vec2 fsUv;
@@ -744,9 +741,9 @@ void setupGraphics() {
 	jsAlphaLocation = glGetUniformLocation(jacobiShader, "uAlpha");
 
 	divergenceShader = loadNormalShader(
-		vertDefines +
+		defines +
 		fullscreenVs,
-		fragDefines +
+		defines +
 		std::string(R"(
 
         in vec2 fsUv;
@@ -770,9 +767,9 @@ void setupGraphics() {
 	dswTexLocation = glGetUniformLocation(divergenceShader, "uwTex");
 
 	gradientSubtractionShader = loadNormalShader(
-		vertDefines +
+		defines +
 		fullscreenVs,
-		fragDefines +
+		defines +
 		std::string(R"(
 
         in vec2 fsUv;
@@ -798,14 +795,15 @@ void setupGraphics() {
 	gsspTexLocation = glGetUniformLocation(gradientSubtractionShader, "upTex");
 	gsswTexLocation = glGetUniformLocation(gradientSubtractionShader, "uwTex");
 
+	// in order to make interesting simulations, 
+	// we place out emitters that add colors and forces to different locations.
+	// this self-containe string contains all the emitter logic.
 	std::string emitterCode = std::string(R"(
-
 vec2 F;
 vec3 C;
 in vec2 fsUv;
 
 uniform float uCounter;
-
 
 vec2 uForce;
 vec2 uPos;
@@ -1034,13 +1032,13 @@ if(uCounter > 440) {
 
 }
 
-
 )");
 
+    // shader that applies forces from the emitters.
 	forceShader = loadNormalShader(
-		vertDefines +
+	    defines +
 		fullscreenVs,
-		fragDefines +
+		defines +
 		emitterCode +
 		std::string(R"(
 
@@ -1052,11 +1050,7 @@ if(uCounter > 440) {
 		void main()
 		{
           F = vec2(0.0, 0.0);
-
           emitter();
-
-
-
           FragColor = vec4(F.xy, 0.0, 0.0) + texture(uwTex, fsUv);
 		}
 		)")
@@ -1064,10 +1058,11 @@ if(uCounter > 440) {
 	fswTexLocation = glGetUniformLocation(forceShader, "uwTex");
 	fsCounterLocation = glGetUniformLocation(forceShader, "uCounter");
 
+	// shader that adds the colors from the emitters.
 	addColorShader = loadNormalShader(
-		vertDefines +
+		defines +
 		fullscreenVs,
-		fragDefines +
+		defines +
 		emitterCode +
 		std::string(R"(
 
@@ -1078,7 +1073,6 @@ if(uCounter > 440) {
 		void main()
 		{
           C = vec3(0.0, 0.0, 0.0);
-
           emitter();
           FragColor = vec4(C.rgb, 0.0) + texture(ucTex, fsUv);
 		}
@@ -1087,6 +1081,7 @@ if(uCounter > 440) {
 	accTexLocation = glGetUniformLocation(addColorShader, "ucTex");
 	acCounterLocation = glGetUniformLocation(addColorShader, "uCounter");
 
+	// write a texture at some specified place.
 	writeTexShader = loadNormalShader(
 		//vertDefines +
 
@@ -1098,15 +1093,13 @@ if(uCounter > 440) {
     uniform vec2 uOffset;
     uniform vec2 uSize;
 
-
 	void main() {
 		fsUv = (vsPos.xy);
-//		gl_Position = vec4(2.0 * (vsPos.xy) - vec2(1.0), 0.0, 1.0);
 		gl_Position = vec4(uSize * (vsPos.xy) + uOffset, 0.0, 1.0);
 	}
 	)",
-
-		fragDefines +
+    
+		defines +
 		std::string(R"(
 
         uniform sampler2D ucTex;
@@ -1121,10 +1114,8 @@ if(uCounter > 440) {
             discard;
           }
 
+          // take gamma into account:
           FragColor = vec4(pow(c, vec3(2.2)), 1.0);
-
-       //   FragColor = vec4(1.0, 0.0, 0.0, 1.0);
-
 		}
 		)")
 	);
@@ -1132,18 +1123,9 @@ if(uCounter > 440) {
 	wtOffsetLocation = glGetUniformLocation(writeTexShader, "uOffset");
 	wtSizeLocation = glGetUniformLocation(writeTexShader, "uSize");
 
+	// shader for rendering texture.
 	visShader = loadNormalShader(
-
-		std::string(R"(
-       layout(location = 0) in vec3 vsPos;
-
-        out vec2 fsUv;
-
-        void main() {
-          fsUv = vsPos.xy;
-          gl_Position =  vec4(2.0 * vsPos.xy - vec2(1.0), 0.0, 1.0);
-        }
-		)"),
+		fullscreenVs,
 
 		std::string(R"(
 
