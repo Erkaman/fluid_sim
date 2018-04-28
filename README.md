@@ -6,12 +6,12 @@
 ![Animated](gifs/sim4.gif)
 
 An implementation of the article "Fast Fluid Dynamics Simulation on the GPU", using
-C++ and OpenGL 3.3. This implementation implements the "advection", and "projection" from the
-article. The "diffusion" and "boundary conditions" of the article are not implemented.
-Finally, Note that the primary was focus was on making flashy simulations, and not on physical realism.
+C++ and OpenGL 3.3. This implementation implements the "advection", and "projection" steps from the
+article. The "diffusion" and "boundary conditions" steps of the article are not implemented.
+Finally, note that the primary focus was on making flashy simulations, and not on physical realism.
 
-The code is minimalistic and is written in ~1000LOC of C++, and uses only OpenGL no frameworks whatsoever,
-so the code should be readable.
+**The code is minimalistic and is written in only ~1000LOC of C++, and uses only OpenGL and no frameworks whatsoever,
+so the code should be readable.**
 
 # Video
 
