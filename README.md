@@ -13,6 +13,12 @@ Finally, Note that the primary was focus was on making flashy simulations, and n
 The code is minimalistic and is written in ~1000LOC of C++, and uses only OpenGL no frameworks whatsoever,
 so the code should be readable.
 
+# Video
+
+Longer video of fluid simulations:
+
+[![Result](http://img.youtube.com/vi/vB2svwmjGUg/0.jpg)](https://www.youtube.com/watch?v=vB2svwmjGUg)
+
 ## Building
 
 The only dependencies are [GLFW](https://github.com/glfw/glfw) and [stb_image](https://github.com/nothings/stb).
