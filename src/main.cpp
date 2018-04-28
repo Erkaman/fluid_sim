@@ -284,6 +284,33 @@ void advect(GLuint src, GLuint u, GLuint dst) {
 	GL_C(glBindFramebuffer(GL_FRAMEBUFFER, 0));
 }
 
+// write the texture src to dst.
+void writeTex(GLuint src, GLuint dst) {
+	GL_C(glBindFramebuffer(GL_FRAMEBUFFER, fbo0));
+	GL_C(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,
+		dst,
+		0));
+	GL_C(glBindFramebuffer(GL_FRAMEBUFFER, 0));
+
+	GL_C(glBindFramebuffer(GL_FRAMEBUFFER, fbo0));
+	{
+		GL_C(glClearColor(0.0f, 0.0f, 0.0f, 0.0f));
+		GL_C(glClear(GL_COLOR_BUFFER_BIT));
+
+		GL_C(glUseProgram(writeTexShader));
+
+		GL_C(glUniform1i(wtcTexLocation, 0));
+		GL_C(glActiveTexture(GL_TEXTURE0 + 0));
+		GL_C(glBindTexture(GL_TEXTURE_2D, src));
+
+		GL_C(glUniform2f(wtOffsetLocation, -1.0f, -1.0f));
+		GL_C(glUniform2f(wtSizeLocation, +2.0f, +2.0f));
+
+		renderFullscreen();
+	}
+	GL_C(glBindFramebuffer(GL_FRAMEBUFFER, 0));
+}
+
 // solve the poisson pressure equation, by simple jacobi iteration.
 // that is, solve for x in
 // (nabla^2)(x) = b.
@@ -373,131 +400,89 @@ void renderFrame() {
 	static int icounter = 0;
 	icounter++;
 	
-	if (icounter > 400 && icounter < 700 && curSim == CIRCLE_SIM) {
-		float t = 1.0 - ((float)icounter - 400.0f) / 300.0f;
-		blend = t;
-		
-		//float f = t - 1.0;
-		//blend =  f * f * f + 1.0;
-	}
-	else if (icounter == 700 && curSim == CIRCLE_SIM) {
-		
-		clearTexture(wTex);
-	
-		// add color.
-		dpush("Write Mona Lisa");
-		{
-			GL_C(glBindFramebuffer(GL_FRAMEBUFFER, fbo0));
-			GL_C(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,
-				//cBegTex,
-				cTempTex,
-				0));
-			GL_C(glBindFramebuffer(GL_FRAMEBUFFER, 0));
-
-			GL_C(glBindFramebuffer(GL_FRAMEBUFFER, fbo0));
-			{
-				GL_C(glClearColor(0.0f, 0.0f, 0.0f, 0.0f));
-				GL_C(glClear(GL_COLOR_BUFFER_BIT));
-
-				GL_C(glUseProgram(writeTexShader));
-
-				GL_C(glUniform1i(wtcTexLocation, 0));
-				GL_C(glActiveTexture(GL_TEXTURE0 + 0));
-				GL_C(glBindTexture(GL_TEXTURE_2D, monaTex));
-
-				GL_C(glUniform2f(wtOffsetLocation, -1.0f, -1.0f));
-				GL_C(glUniform2f(wtSizeLocation, +2.0f, +2.0f));
-
-				renderFullscreen();
-			}
-			GL_C(glBindFramebuffer(GL_FRAMEBUFFER, 0));
+	// below is code that handles smooth transitions between the four simulations.
+	{
+		if (icounter > 400 && icounter < 700 && curSim == CIRCLE_SIM) {
+			float t = 1.0 - ((float)icounter - 400.0f) / 300.0f;
+			blend = t;
 		}
-		dpop();
-		blend = 0.0f;
-		icounter = 0;
-		curSim = FADE_IN_MONA_LISA_SIM;
-	} else if (icounter < 80 && curSim == FADE_IN_MONA_LISA_SIM) {
-		float t =((float)icounter) / 80;
-		
-		blend =  pow(t, 3.0);
-	} else if (icounter == 80 && curSim == FADE_IN_MONA_LISA_SIM) {
-		icounter = 0;
-		curSim = MONA_LISA_SIM;
-		blend = 1.0f;
-	} else if (icounter > 800 && icounter < 1100 && curSim == MONA_LISA_SIM) {
-		float t = 1.0 - ((float)icounter - 800.0f) / 300.0f;
-		blend = t;
-	}
-	else if (icounter == 1100 && curSim == MONA_LISA_SIM) {
-		clearTexture(wTex);
+		else if (icounter == 700 && curSim == CIRCLE_SIM) {
 
-		dpush("Write Scream");
-		{
-			GL_C(glBindFramebuffer(GL_FRAMEBUFFER, fbo0));
-			GL_C(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,
-				//cBegTex,
-				cTempTex,
-				0));
-			GL_C(glBindFramebuffer(GL_FRAMEBUFFER, 0));
+			clearTexture(wTex);
 
-			GL_C(glBindFramebuffer(GL_FRAMEBUFFER, fbo0));
-			{
-				GL_C(glUseProgram(writeTexShader));
+			// add color.
+			dpush("Write Mona Lisa");
+			writeTex(monaTex, cTempTex);
+			dpop();
 
-				GL_C(glUniform1i(wtcTexLocation, 0));
-				GL_C(glActiveTexture(GL_TEXTURE0 + 0));
-				GL_C(glBindTexture(GL_TEXTURE_2D, screamTex));
-
-				GL_C(glUniform2f(wtOffsetLocation, -1.0f, -1.0f));
-				GL_C(glUniform2f(wtSizeLocation, +2.0f, +2.0f));
-
-				renderFullscreen();
-			}
-			GL_C(glBindFramebuffer(GL_FRAMEBUFFER, 0));
+			blend = 0.0f;
+			icounter = 0;
+			curSim = FADE_IN_MONA_LISA_SIM;
 		}
-		dpop();
-		
-		icounter = 0;
-		blend = 0.0f;
-		curSim = FADE_IN_THE_SCREAM_SIM;
-	}else if (icounter < 130 && curSim == FADE_IN_THE_SCREAM_SIM) {
-		float t = ((float)icounter) / 130;
-		
-		blend = pow(t, 3.0);
+		else if (icounter < 80 && curSim == FADE_IN_MONA_LISA_SIM) {
+			float t = ((float)icounter) / 80;
 
-		//blend = t;
-		
-	}
-	else if (icounter == 130 && curSim == FADE_IN_THE_SCREAM_SIM) {
-		icounter = 0;
-		curSim = THE_SCREAM_SIM;
-		blend = 1.0f;
-	}else if (icounter > 1100 && icounter < 1300 && curSim == THE_SCREAM_SIM) {
-		float t = 1.0 - ((float)icounter - 1100.0f) / 200.0f;
-		blend = t;
-	}
-	
-	else if (icounter == 1300 && curSim == THE_SCREAM_SIM) {
-		clearTexture(wTex);
-		clearTexture(cTempTex);
-		blend = 0.0f;
-		icounter = 0;
-		curSim = RAINBOW_SIM;
-	}
-	else if (icounter < 500 && curSim == RAINBOW_SIM) {
-		float t = ((float)icounter) / 500;
-		blend = t;
-	}
-	else if (icounter == 500 && curSim == RAINBOW_SIM) {
-		blend = 1.0f;
-	} else if (icounter > 1000 && icounter < 1200 && curSim == RAINBOW_SIM) {
-		float t = 1.0 - ((float)icounter - 1000.0f) / 200.0f;
-		blend = t;
-	}
-	else if (icounter >= 1200 &&  icounter <= 1300 && curSim == RAINBOW_SIM) {
-		blend = 0.0f;
-	} else if (icounter >= 1300 && curSim == RAINBOW_SIM) {
-		done = true;
+			blend = pow(t, 3.0);
+		}
+		else if (icounter == 80 && curSim == FADE_IN_MONA_LISA_SIM) {
+			icounter = 0;
+			curSim = MONA_LISA_SIM;
+			blend = 1.0f;
+		}
+		else if (icounter > 900 && icounter < 1200 && curSim == MONA_LISA_SIM) {
+			float t = 1.0 - ((float)icounter - 900.0f) / 300.0f;
+			blend = t;
+		}
+		else if (icounter == 1200 && curSim == MONA_LISA_SIM) {
+			clearTexture(wTex);
+
+			dpush("Write Scream");
+			writeTex(screamTex, cTempTex);
+			dpop();
+
+			icounter = 0;
+			blend = 0.0f;
+			curSim = FADE_IN_THE_SCREAM_SIM;
+		}
+		else if (icounter < 130 && curSim == FADE_IN_THE_SCREAM_SIM) {
+			float t = ((float)icounter) / 130;
+			blend = pow(t, 3.0);
+		}
+		else if (icounter == 130 && curSim == FADE_IN_THE_SCREAM_SIM) {
+			icounter = 0;
+			curSim = THE_SCREAM_SIM;
+			blend = 1.0f;
+		}
+		else if (icounter > 1100 && icounter < 1300 && curSim == THE_SCREAM_SIM) {
+			float t = 1.0 - ((float)icounter - 1100.0f) / 200.0f;
+			blend = t;
+		}
+
+		else if (icounter == 1300 && curSim == THE_SCREAM_SIM) {
+			clearTexture(wTex);
+			clearTexture(cTempTex);
+			blend = 0.0f;
+			icounter = 0;
+			curSim = RAINBOW_SIM;
+		}
+		else if (icounter < 500 && curSim == RAINBOW_SIM) {
+			float t = ((float)icounter) / 500;
+			blend = t;
+		}
+		else if (icounter == 500 && curSim == RAINBOW_SIM) {
+			blend = 1.0f;
+		}
+		else if (icounter > 1000 && icounter < 1200 && curSim == RAINBOW_SIM) {
+			float t = 1.0 - ((float)icounter - 1000.0f) / 200.0f;
+			blend = t;
+		}
+		else if (icounter >= 1200 && icounter <= 1300 && curSim == RAINBOW_SIM) {
+			blend = 0.0f;
+		}
+		else if (icounter >= 1300 && curSim == RAINBOW_SIM) {
+			blend = 0.0f;
+			done = true;
+		}
 	}
 	
 	// add force.
