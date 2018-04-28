@@ -454,7 +454,7 @@ void renderFrame() {
 	}
 	dpop();
 
-	if (counter == 1) {
+	if (counter == 1 && false) {
 		// add color.
 		dpush("Write Mona Lisa");
 		{
@@ -486,6 +486,35 @@ void renderFrame() {
 		dpop();
 	}
 
+	if (counter == 1) {
+		// add color.
+	
+		dpush("Write Scream");
+		{
+			GL_C(glBindFramebuffer(GL_FRAMEBUFFER, fbo0));
+			GL_C(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,
+				//cBegTex,
+				cEndTex,
+				0));
+			GL_C(glBindFramebuffer(GL_FRAMEBUFFER, 0));
+
+			GL_C(glBindFramebuffer(GL_FRAMEBUFFER, fbo0));
+			{
+				GL_C(glUseProgram(writeTexShader));
+
+				GL_C(glUniform1i(wtcTexLocation, 0));
+				GL_C(glActiveTexture(GL_TEXTURE0 + 0));
+				GL_C(glBindTexture(GL_TEXTURE_2D, screamTex));
+				
+				GL_C(glUniform2f(wtOffsetLocation, -1.0f, -1.0f));
+				GL_C(glUniform2f(wtSizeLocation, +2.0f, +2.0f));
+
+				RenderFullscreen();
+			}
+			GL_C(glBindFramebuffer(GL_FRAMEBUFFER, 0));
+		}
+		dpop();
+	}
 
 	dpush("Pressure Gradient Subtract");
 	// subtraction of pressure gradient.
@@ -514,7 +543,7 @@ void renderFrame() {
 
 		}
 		dpop();
-
+		
 		//	I think maybe the texture sampling coordinates are wrong. try not samplignthe texel center.
 
 		dpush("pressure gradient subtraction");
@@ -1080,11 +1109,38 @@ void circleEmitter() {
   }
 }
 
+void goghEmitter(vec2 ePos, vec2 eDir, float myc) {
+   
+
+  uRad = 0.002f;
+  uColor = vec3(1.0, 0.0, 0.0);
+  uPos = ePos+ eDir * float(myc) / 500.0f;
+  uForce = eDir * 70.0 + 100.0 * (-1.0 + 2.0* mynoise(300.0 *  uPos));
+
+  float dist = distance(fsUv, uPos);
+  float t = max(uRad - dist, 0.0)/uRad;
+
+  F +=  (t) * uForce;
+
+{
+  float p = 0.2;
+  float tt = t;
+  tt += float(myc) / 200;
+ 
+  dist = distance(fsUv,  ePos - 0.1 * eDir + eDir * (float(myc) / 500.0f)  );
+  t = max(uRad - dist, 0.0)/uRad;
+  float theta = 0.0f + 3.14 * 2.0 * mynoise(300.0 *  uPos);
+  F +=  (t) * 1.0 * vec2(cos(theta), sin(theta));
+}
+
+}
+
 void emitter() {
   //rainbowEmit();
 
  // circleEmitter();
 
+// single mona lisa that covers screen.
 /*
 if(uCounter > 3) {
  
@@ -1105,12 +1161,64 @@ if(uCounter > 3) {
 }
 */
 
-/*
-if(uCounter > 3 && uCounter < 30) {
-  
-  F +=  vec2(0.8, 0.0);
+
+
+if(uCounter > 3) {
+ goghEmitter(vec2(0.5, 0.5), normalize(vec2(0.4, 0.8)), uCounter-3);   
 }
-*/
+if(uCounter > 60) {
+ goghEmitter(vec2(0.3, 0.3), normalize(vec2(-0.2, 0.4)), uCounter-60);   
+}
+if(uCounter > 90) {
+ goghEmitter(vec2(+0.8, 0.2), normalize(vec2(-0.4, +0.4)), uCounter-90);   
+}
+if(uCounter > 130) {
+ goghEmitter(vec2(+0.5, 0.96), normalize(vec2(0.1, -1.0)), uCounter-130);   
+}
+if(uCounter > 160) {
+ goghEmitter(vec2(+0.1, 0.1), normalize(vec2(0.3, +0.08)), uCounter-160);   
+}
+
+if(uCounter > 200) {
+ goghEmitter(vec2(+0.19, 0.98), normalize(vec2(0.1, -0.4)), uCounter-200);   
+}
+if(uCounter > 250) {
+ goghEmitter(vec2(+0.01, 0.01), normalize(vec2(0.1, 0.1)), uCounter-250);   
+}
+if(uCounter > 300) {
+ goghEmitter(vec2(+0.8, 0.1), normalize(vec2(-0.1, 0.8)), uCounter-300);   
+}
+
+if(uCounter > 320) {
+ goghEmitter(vec2(+0.2, 0.9), normalize(vec2(0.0, -0.1)), uCounter-320);   
+}
+
+if(uCounter > 330) {
+ goghEmitter(vec2(+0.5, 0.5), normalize(vec2(-0.6, 0.0)), uCounter-330);   
+}
+
+if(uCounter > 350) {
+ goghEmitter(vec2(+0.1, 0.8), normalize(vec2(1.0, 0.0)), uCounter-350);   
+}
+if(uCounter > 360) {
+ goghEmitter(vec2(+0.1, 0.1), normalize(vec2(1.0, 0.0)), uCounter-360);   
+}
+if(uCounter > 380) {
+ goghEmitter(vec2(+0.9, 0.9), normalize(vec2(-1.0, 0.0)), uCounter-380);   
+}
+
+if(uCounter > 400) {
+ goghEmitter(vec2(+0.5, 0.04), normalize(vec2(0.0, 0.9)), uCounter-400);   
+}
+if(uCounter > 420) {
+ goghEmitter(vec2(+0.89, 0.9), normalize(vec2(0.0, -0.9)), uCounter-420);   
+}
+
+if(uCounter > 440) {
+ goghEmitter(vec2(+0.11, 0.1), normalize(vec2(0.0, +0.9)), uCounter-440);   
+}
+
+
 
 }
 
@@ -1166,7 +1274,7 @@ if(uCounter > 3 && uCounter < 30) {
 	);
 	accTexLocation = glGetUniformLocation(addColorShader, "ucTex");
 	acCounterLocation = glGetUniformLocation(addColorShader, "uCounter");
-
+	
 	writeTexShader = LoadNormalShader(
 		//vertDefines +
 
@@ -1196,7 +1304,12 @@ if(uCounter > 3 && uCounter < 30) {
 
 		void main()
 		{
-          FragColor = vec4(pow(texture(ucTex, vec2(fsUv.x, 1.0 - fsUv.y) ).rgb, vec3(2.2)), 1.0);
+          vec3 c = texture(ucTex, vec2(fsUv.x, 1.0 - fsUv.y) ).rgb;
+          if(length(c) < 0.1) {
+discard;
+           }
+
+          FragColor = vec4(pow(c, vec3(2.2)), 1.0);
 
        //   FragColor = vec4(1.0, 0.0, 0.0, 1.0);
 
