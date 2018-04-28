@@ -17,7 +17,7 @@ so the code should be readable.**
 
 Longer video of fluid simulations:
 
-[![Result](http://img.youtube.com/vi/9gTC48o/0.jpg)](https://www.youtube.com/watch?v=9gTC48o)
+[![Result](http://img.youtube.com/vi/FDX-9gTC48o/0.jpg)](https://www.youtube.com/watch?v=FDX-9gTC48o)
 
 ## Building
 
