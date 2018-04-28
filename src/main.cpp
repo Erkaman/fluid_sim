@@ -137,10 +137,12 @@ GLuint gsswTexLocation;
 GLuint forceShader;
 GLuint fswTexLocation;
 GLuint fsCounterLocation;
+GLuint fsSimLocation;
 
 GLuint addColorShader;
 GLuint accTexLocation;
 GLuint acCounterLocation;
+GLuint acSimLocation;
 
 GLuint writeTexShader;
 GLuint wtcTexLocation;
@@ -167,6 +169,15 @@ GLuint uEndTempTex;
 
 GLuint monaTex;
 GLuint screamTex;
+
+enum SimulationStage {
+	CIRCLE_SIM = 0,
+	MONA_LISA_SIM,
+	THE_SCREAM_SIM,
+	RAINBOW_SIM,
+};
+
+SimulationStage curSim = CIRCLE_SIM;
 
 void initGlfw() {
 	if (!glfwInit())
@@ -352,8 +363,86 @@ void renderFrame() {
 	// we use this simple counter for progressing the state of the the simulation.
 	static int icounter = 0;
 	icounter++;
-	float counter = icounter * 1.0f;
+	
+	if (icounter == 300 && curSim == CIRCLE_SIM) {
+		
+		clearTexture(wTex);
+	
+		// add color.
+		dpush("Write Mona Lisa");
+		{
+			GL_C(glBindFramebuffer(GL_FRAMEBUFFER, fbo0));
+			GL_C(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,
+				//cBegTex,
+				cTempTex,
+				0));
+			GL_C(glBindFramebuffer(GL_FRAMEBUFFER, 0));
 
+			GL_C(glBindFramebuffer(GL_FRAMEBUFFER, fbo0));
+			{
+				GL_C(glClearColor(0.0f, 0.0f, 0.0f, 0.0f));
+				GL_C(glClear(GL_COLOR_BUFFER_BIT));
+
+				GL_C(glUseProgram(writeTexShader));
+
+				GL_C(glUniform1i(wtcTexLocation, 0));
+				GL_C(glActiveTexture(GL_TEXTURE0 + 0));
+				GL_C(glBindTexture(GL_TEXTURE_2D, monaTex));
+
+				GL_C(glUniform2f(wtOffsetLocation, -1.0f, -1.0f));
+				GL_C(glUniform2f(wtSizeLocation, +2.0f, +2.0f));
+
+				renderFullscreen();
+			}
+			GL_C(glBindFramebuffer(GL_FRAMEBUFFER, 0));
+		}
+		dpop();
+
+		icounter = 0;
+		curSim = MONA_LISA_SIM;
+	}
+
+	if (icounter == 300 && curSim == MONA_LISA_SIM) {
+		clearTexture(wTex);
+
+		dpush("Write Scream");
+		{
+			GL_C(glBindFramebuffer(GL_FRAMEBUFFER, fbo0));
+			GL_C(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,
+				//cBegTex,
+				cTempTex,
+				0));
+			GL_C(glBindFramebuffer(GL_FRAMEBUFFER, 0));
+
+			GL_C(glBindFramebuffer(GL_FRAMEBUFFER, fbo0));
+			{
+				GL_C(glUseProgram(writeTexShader));
+
+				GL_C(glUniform1i(wtcTexLocation, 0));
+				GL_C(glActiveTexture(GL_TEXTURE0 + 0));
+				GL_C(glBindTexture(GL_TEXTURE_2D, screamTex));
+
+				GL_C(glUniform2f(wtOffsetLocation, -1.0f, -1.0f));
+				GL_C(glUniform2f(wtSizeLocation, +2.0f, +2.0f));
+
+				renderFullscreen();
+			}
+			GL_C(glBindFramebuffer(GL_FRAMEBUFFER, 0));
+		}
+		dpop();
+		
+		icounter = 0;
+		curSim = THE_SCREAM_SIM;
+	}
+	
+	if (icounter == 300 && curSim == THE_SCREAM_SIM) {
+		clearTexture(wTex);
+		clearTexture(cTempTex);
+
+		icounter = 0;
+		curSim = RAINBOW_SIM;
+	}
+	
 	// add force.
 	dpush("c Add Force");
 	{
@@ -375,7 +464,9 @@ void renderFrame() {
 			GL_C(glActiveTexture(GL_TEXTURE0 + 0));
 			GL_C(glBindTexture(GL_TEXTURE_2D, wTex));
 
-			GL_C(glUniform1f(fsCounterLocation, float(counter)));
+			GL_C(glUniform1f(fsCounterLocation, float(icounter)));
+			GL_C(glUniform1i(fsSimLocation, curSim));
+			
 
 			renderFullscreen();
 		}
@@ -404,75 +495,14 @@ void renderFrame() {
 			GL_C(glActiveTexture(GL_TEXTURE0 + 0));
 			GL_C(glBindTexture(GL_TEXTURE_2D, cTempTex));
 
-			GL_C(glUniform1f(acCounterLocation, float(counter)));
-
+			GL_C(glUniform1f(acCounterLocation, float(icounter)));
+			GL_C(glUniform1i(acSimLocation, curSim));
+			
 			renderFullscreen();
 		}
 		GL_C(glBindFramebuffer(GL_FRAMEBUFFER, 0));
 	}
 	dpop();
-
-	if (counter == 1 && false) {
-		// add color.
-		dpush("Write Mona Lisa");
-		{
-			GL_C(glBindFramebuffer(GL_FRAMEBUFFER, fbo0));
-			GL_C(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,
-				//cBegTex,
-				cEndTex,
-				0));
-			GL_C(glBindFramebuffer(GL_FRAMEBUFFER, 0));
-
-			GL_C(glBindFramebuffer(GL_FRAMEBUFFER, fbo0));
-			{
-				GL_C(glClearColor(0.0f, 0.0f, 0.0f, 0.0f));
-				GL_C(glClear(GL_COLOR_BUFFER_BIT));
-
-				GL_C(glUseProgram(writeTexShader));
-
-				GL_C(glUniform1i(wtcTexLocation, 0));
-				GL_C(glActiveTexture(GL_TEXTURE0 + 0));
-				GL_C(glBindTexture(GL_TEXTURE_2D, monaTex));
-
-				GL_C(glUniform2f(wtOffsetLocation, -1.0f, -1.0f));
-				GL_C(glUniform2f(wtSizeLocation, +2.0f, +2.0f));
-
-				renderFullscreen();
-			}
-			GL_C(glBindFramebuffer(GL_FRAMEBUFFER, 0));
-		}
-		dpop();
-	}
-
-	if (counter == 1 && false) {
-		// add color.
-
-		dpush("Write Scream");
-		{
-			GL_C(glBindFramebuffer(GL_FRAMEBUFFER, fbo0));
-			GL_C(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,
-				//cBegTex,
-				cEndTex,
-				0));
-			GL_C(glBindFramebuffer(GL_FRAMEBUFFER, 0));
-
-			GL_C(glBindFramebuffer(GL_FRAMEBUFFER, fbo0));
-			{
-				GL_C(glUseProgram(writeTexShader));
-
-				GL_C(glUniform1i(wtcTexLocation, 0));
-				GL_C(glActiveTexture(GL_TEXTURE0 + 0));
-				GL_C(glBindTexture(GL_TEXTURE_2D, screamTex));
-
-				GL_C(glUniform2f(wtOffsetLocation, -1.0f, -1.0f));
-				GL_C(glUniform2f(wtSizeLocation, +2.0f, +2.0f));
-
-				renderFullscreen();
-			}
-			GL_C(glBindFramebuffer(GL_FRAMEBUFFER, 0));
-		}
-		dpop();
-	}
 
 	dpush("Pressure Gradient Subtract");
 	// subtraction of pressure gradient.
@@ -804,6 +834,7 @@ vec3 C;
 in vec2 fsUv;
 
 uniform float uCounter;
+uniform int uSim;
 
 vec2 uForce;
 vec2 uPos;
@@ -1027,15 +1058,17 @@ if(uCounter > 440) {
 }
 
 void emitter() {
+
+if(uSim == 0) {
+  circleEmitter();
+  
+} else if(uSim == 1) {
+  monaLisa();
+} else if(uSim == 2) {
+  theScream();
+} else {
   rainbowEmit();
-
- //circleEmitter();
-
-// single mona lisa that covers screen.
-
-//monaLisa();
-
-//theScream();
+}
 
 }
 
@@ -1064,6 +1097,7 @@ void emitter() {
 	);
 	fswTexLocation = glGetUniformLocation(forceShader, "uwTex");
 	fsCounterLocation = glGetUniformLocation(forceShader, "uCounter");
+	fsSimLocation = glGetUniformLocation(forceShader, "uSim");
 
 	// shader that adds the colors from the emitters.
 	addColorShader = loadNormalShader(
@@ -1087,6 +1121,7 @@ void emitter() {
 	);
 	accTexLocation = glGetUniformLocation(addColorShader, "ucTex");
 	acCounterLocation = glGetUniformLocation(addColorShader, "uCounter");
+	acSimLocation = glGetUniformLocation(addColorShader, "uSim");
 
 	// write a texture at some specified place.
 	writeTexShader = loadNormalShader(
@@ -1117,9 +1152,6 @@ void emitter() {
 		void main()
 		{
           vec3 c = texture(ucTex, vec2(fsUv.x, 1.0 - fsUv.y) ).rgb;
-          if(length(c) < 0.1) {
-            discard;
-          }
 
           // take gamma into account:
           FragColor = vec4(pow(c, vec3(2.2)), 1.0);
