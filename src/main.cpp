@@ -569,39 +569,27 @@ void handleInput() {
 	}
 }
 
-void checkFbo() {
-	// make sure nothing went wrong:
-	GLenum status;
-	GL_C(status = glCheckFramebufferStatus(GL_FRAMEBUFFER));
-	if (status != GL_FRAMEBUFFER_COMPLETE) {
-		printf("Framebuffer not complete. Status: 0x%08x\n", status);
-	}
-}
-
 GLuint createFloatTexture(float* data, GLint internalFormat, GLint format, GLenum type) {
 	GLuint tex;
 
 	GL_C(glGenTextures(1, &tex));
 	GL_C(glBindTexture(GL_TEXTURE_2D, tex));
 	GL_C(glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, fbWidth, fbHeight, 0, format, type, data));
-
 	GL_C(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR));
 	GL_C(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR));
-
 	GL_C(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
 	GL_C(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
-
 	GL_C(glBindTexture(GL_TEXTURE_2D, 0));
-
+	
 	return tex;
 }
 
-GLuint loadTexture(const char* filepath) {
+GLuint loadJpgAsTexture(const char* filepath) {
 	FILE* fh = fopen(filepath, "rb");
 	if (fh == nullptr) {
-		printf("COUDL NOT LOAD %s\n", filepath);
+		printf("COULD NOT OPEN %s. Make sure it is in path\n", filepath);
 	}
-
+	
 	int width;
 	int height;
 	int depth;
@@ -626,7 +614,7 @@ GLuint loadTexture(const char* filepath) {
 	}
 
 	}
-
+	
 	GLuint tex;
 
 	GL_C(glGenTextures(1, &tex));
@@ -640,78 +628,41 @@ GLuint loadTexture(const char* filepath) {
 	return tex;
 }
 
-void setupGraphics(int w, int h) {
-
+void setupGraphics() {
 	initGlfw();
 
+	// create all textures.
 	{
-
-		{
-			float* cData = new float[fbWidth * fbHeight * 4];
-			for (int y = 0; y < fbHeight; ++y) {
-				for (int x = 0; x < fbWidth; ++x) {
-					float fx = (float)x / (float)fbWidth;
-					float fy = (float)y / (float)fbHeight;
-
-					float r = 1.0f;
-					float g = 0.0f;
-					float b = 0.0f;
-
-
-					if (fx > 0.5 && fy > 0.5) {
-						float r = 0.0f;
-						float g = 1.0f;
-						float b = 0.0f;
-					}
-
-					r = fx;
-					g = fy;;
-					b = fmaxf(fx, fy);
-					b = 0.0f;
-
-					cData[4 * (fbWidth * y + x) + 0] = r;
-					cData[4 * (fbWidth * y + x) + 1] = g;
-					cData[4 * (fbWidth * y + x) + 2] = b;
-					cData[4 * (fbWidth * y + x) + 3] = 1.0f;
-
-				}
+		float* zeroData = new float[fbWidth * fbHeight * 4];
+		for (int y = 0; y < fbHeight; ++y) {
+			for (int x = 0; x < fbWidth; ++x) {
+				zeroData[4 * (fbWidth * y + x) + 0] = 0.0f;
+				zeroData[4 * (fbWidth * y + x) + 1] = 0.0f;
+				zeroData[4 * (fbWidth * y + x) + 2] = 0.0f;
+				zeroData[4 * (fbWidth * y + x) + 3] = 0.0f;
 			}
-
-			float* zeroData = new float[fbWidth * fbHeight * 4];
-			for (int y = 0; y < fbHeight; ++y) {
-				for (int x = 0; x < fbWidth; ++x) {
-
-					zeroData[4 * (fbWidth * y + x) + 0] = 0.0f;
-					zeroData[4 * (fbWidth * y + x) + 1] = 0.0f;
-					zeroData[4 * (fbWidth * y + x) + 2] = 0.0f;
-					zeroData[4 * (fbWidth * y + x) + 3] = 0.0f;
-				}
-			}
-
-			cBegTex = createFloatTexture(zeroData, GL_RGBA32F, GL_RGBA, GL_FLOAT);
-
-
-			//	GL_C(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, fbWidth, fbHeight, 0, GL_RGBA, GL_FLOAT, data));
-
-			uBegTex = createFloatTexture(zeroData, GL_RG32F, GL_RG, GL_FLOAT);
-			uEndTex = createFloatTexture(zeroData, GL_RG32F, GL_RG, GL_FLOAT);
-			cEndTex = createFloatTexture(zeroData, GL_RGBA32F, GL_RGBA, GL_FLOAT);
-			cTempTex = createFloatTexture(zeroData, GL_RGBA32F, GL_RGBA, GL_FLOAT);
-
-			wTex = createFloatTexture(zeroData, GL_RG32F, GL_RG, GL_FLOAT);
-			wTempTex = createFloatTexture(zeroData, GL_RG32F, GL_RG, GL_FLOAT);
-			wDivergenceTex = createFloatTexture(zeroData, GL_RG32F, GL_RG, GL_FLOAT);
-			uEndTempTex = createFloatTexture(zeroData, GL_RG32F, GL_RG, GL_FLOAT);
-
-			pTempTex[0] = createFloatTexture(zeroData, GL_RG32F, GL_RG, GL_FLOAT);
-			pTempTex[1] = createFloatTexture(zeroData, GL_RG32F, GL_RG, GL_FLOAT);
 		}
+		
+		// note that we use RG32F to store the velocity fields. This is actually very important.
+		// since fluid simulation is heavily bandwidth bound, using RG32F instead of RGBA32F essentially doubled the performance
+		// in our measurments.
+		cBegTex = createFloatTexture(zeroData, GL_RGBA32F, GL_RGBA, GL_FLOAT);
+		uBegTex = createFloatTexture(zeroData, GL_RG32F, GL_RG, GL_FLOAT);
+		uEndTex = createFloatTexture(zeroData, GL_RG32F, GL_RG, GL_FLOAT);
+		cEndTex = createFloatTexture(zeroData, GL_RGBA32F, GL_RGBA, GL_FLOAT);
+		cTempTex = createFloatTexture(zeroData, GL_RGBA32F, GL_RGBA, GL_FLOAT);
+		wTex = createFloatTexture(zeroData, GL_RG32F, GL_RG, GL_FLOAT);
+		wTempTex = createFloatTexture(zeroData, GL_RG32F, GL_RG, GL_FLOAT);
+		wDivergenceTex = createFloatTexture(zeroData, GL_RG32F, GL_RG, GL_FLOAT);
+		uEndTempTex = createFloatTexture(zeroData, GL_RG32F, GL_RG, GL_FLOAT);
+		pTempTex[0] = createFloatTexture(zeroData, GL_RG32F, GL_RG, GL_FLOAT);
+		pTempTex[1] = createFloatTexture(zeroData, GL_RG32F, GL_RG, GL_FLOAT);
 
-		GL_C(glGenFramebuffers(1, &fbo0));
+		monaTex = loadJpgAsTexture("../smallmona.jpg");
+		screamTex = loadJpgAsTexture("../smallscream.jpg");
 	}
-
-	monaTex = loadTexture("../smallmona.jpg");
-	screamTex = loadTexture("../smallscream.jpg");
+	
+	GL_C(glGenFramebuffers(1, &fbo0));
 
 	std::string fullscreenVs(R"(
        layout(location = 0) in vec3 vsPos;
@@ -719,27 +670,21 @@ void setupGraphics(int w, int h) {
         out vec2 fsUv;
 
         void main() {
-          fsUv = remapPos(vsPos.xy);
-          gl_Position =  vec4(2.0 * remapPos(vsPos.xy) - vec2(1.0), 0.0, 1.0);
+          fsUv = vsPos.xy;
+          gl_Position =  vec4(2.0 * vsPos.xy - vec2(1.0), 0.0, 1.0);
         }
 		)");
 
 	std::string deltaCode = std::string("const vec2 delta = vec2(") + std::to_string(1.0f / float(fbWidth)) + std::string(",") + std::to_string(1.0f / float(fbHeight)) + ");\n";
-
+	
 	std::string fragDefines = "";
 	fragDefines += deltaCode;
-
-	//std::string remapPosCode = std::string("vec2 remapPos(vec2 p) { return delta + p * (1.0 - 2.0 * delta); }\n");
-	std::string remapPosCode = std::string("vec2 remapPos(vec2 p) { return p; }\n");
-
 
 	//std::string remapUvCode = std::string("vec2 remapUv(vec2 p) { return 1.5*delta + p * (1.0 - 3.0 * delta); }\n");
 
 	std::string vertDefines = "";
 	vertDefines += deltaCode;
-	vertDefines += remapPosCode;
-	//	vertDefines += remapUvCode;
-
+	
 	advectShader = loadNormalShader(
 		vertDefines +
 		fullscreenVs,
@@ -1173,8 +1118,8 @@ if(uCounter > 440) {
 		{
           vec3 c = texture(ucTex, vec2(fsUv.x, 1.0 - fsUv.y) ).rgb;
           if(length(c) < 0.1) {
-discard;
-           }
+            discard;
+          }
 
           FragColor = vec4(pow(c, vec3(2.2)), 1.0);
 
@@ -1210,11 +1155,6 @@ discard;
   
 		void main()
 		{
-/*
-          vec3 mapped = vec3(1.0) - exp(-texture2D(uTex, fsUv).rgb * 2.0);
-          FragColor = vec4(pow(mapped, vec3(1.0 / 2.2)), 1.0);
-*/
-
           FragColor = vec4(pow(texture2D(uTex, fsUv).rgb, vec3(1.0 / 2.2)), 1.0);
 
 		}
@@ -1222,6 +1162,7 @@ discard;
 	);
 	vsTexLocation = glGetUniformLocation(visShader, "uTex");
 
+	// create vertices of fullscreen quad.
 	{
 		std::vector<FullscreenVertex> vertices;
 
@@ -1241,20 +1182,15 @@ discard;
 }
 
 int main(int argc, char** argv) {
-	setupGraphics(0, 0);
+	setupGraphics();
 
-	int counter = 0;
-	
 	float frameStartTime = 0;
 	float frameEndTime = 0;
 	frameStartTime = (float)glfwGetTime();
-
+	
 	while (!glfwWindowShouldClose(window)) {
-
 		glfwPollEvents();
-
 		handleInput();
-		
 		renderFrame();
 
 		glfwSwapBuffers(window);
