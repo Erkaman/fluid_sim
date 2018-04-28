@@ -169,6 +169,7 @@ GLuint wDivergenceTex;
 GLuint pTempTex[2];
 GLuint pTex;
 GLuint uEndTempTex;
+GLuint outTex;
 
 GLuint monaTex;
 GLuint screamTex;
@@ -730,6 +731,8 @@ void setupGraphics() {
 		uEndTempTex = createFloatTexture(zeroData, GL_RG32F, GL_RG, GL_FLOAT);
 		pTempTex[0] = createFloatTexture(zeroData, GL_RG32F, GL_RG, GL_FLOAT);
 		pTempTex[1] = createFloatTexture(zeroData, GL_RG32F, GL_RG, GL_FLOAT);
+		
+		outTex = createFloatTexture(zeroData, GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE);
 
 		monaTex = loadJpgAsTexture("../smallmona.jpg");
 		screamTex = loadJpgAsTexture("../smallscream.jpg");

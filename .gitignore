@@ -18,3 +18,7 @@ sponza/
 src/out.bin
 docs/
 models/
+*.sh
+output/
+*.mp4
+vids/

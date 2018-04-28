@@ -1,6 +1,6 @@
 # CMake entry point
 cmake_minimum_required (VERSION 3.1)
-project (deferred_shading)
+project (fluid_sim)
 
 find_package(OpenGL REQUIRED)
 
@@ -11,7 +11,6 @@ add_definitions(-D_CRT_SECURE_NO_WARNINGS)
 add_subdirectory (deps)
 
 set (CMAKE_CXX_STANDARD 11)
-
 
 include_directories(
 	deps/glfw-3.2/include/GLFW/
@@ -41,13 +40,11 @@ set(ALL_LIBS
 	glfw
 )
 
-add_executable(deferred_shading
+add_executable(fluid_sim
   src/main.cpp
   deps/glad/src/glad.c
-  deps/lodepng/lodepng.cpp
-
 	)
 
-target_link_libraries(deferred_shading
+target_link_libraries(fluid_sim
 	${ALL_LIBS}
 )
