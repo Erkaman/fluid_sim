@@ -662,6 +662,7 @@ GLuint loadJpgAsTexture(const char* filepath) {
 	FILE* fh = fopen(filepath, "rb");
 	if (fh == nullptr) {
 		printf("COULD NOT OPEN %s. Make sure it is in path\n", filepath);
+        exit(1);
 	}
 	
 	int width;
