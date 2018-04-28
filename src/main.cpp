@@ -892,28 +892,27 @@ vec2 uPos;
 vec3 uColor;
 float uRad;
 
-
 float hash(float n)
 {
-    return fract(sin(n)*43758.5453123);
+  return fract(sin(n)*43758.5453123);
 }
 
 float mynoise(in vec2 x)
 {
-    vec2 p = floor(x);
-    vec2 f = fract(x);
-
-    f = f*f*(3.0-2.0*f);
-
-    float n = p.x + p.y*57.0;
-    float res = mix(mix(hash(n+  0.0), hash(n+  1.0), f.x),
-                    mix(hash(n+ 57.0), hash(n+ 58.0), f.x), f.y);
-    return res;
+  vec2 p = floor(x);
+  vec2 f = fract(x);
+  
+  f = f*f*(3.0-2.0*f);
+  
+  float n = p.x + p.y*57.0;
+  float res = mix(mix(hash(n+  0.0), hash(n+  1.0), f.x),
+                  mix(hash(n+ 57.0), hash(n+ 58.0), f.x), f.y);
+  return res;
 }
 
 vec3 pal( in float t, in vec3 a, in vec3 b, in vec3 c, in vec3 d )
 {
-    return a + b*cos( 6.28318*(c*t+d) );
+  return a + b*cos( 6.28318*(c*t+d) );
 }
 
 float quarticIn(float t) {
@@ -927,7 +926,7 @@ vec3 colorize(float t, vec2 uv) {
   t += float(uCounter) / 200;
   col = 1.2 * pal( t, vec3(0.5,0.5,0.5),vec3(0.5,0.5,0.5),vec3(1.0,1.0,1.0),vec3(0.0,0.33,0.67) );
 
- return col;
+  return col;
 }
 
 void rainbowEmit() {
@@ -959,28 +958,25 @@ void emit(vec2 eDir, vec2 ePos, vec3 pa, vec3 pb, vec3 pc, vec3 pd) {
   float t = max(uRad - dist, 0.0)/uRad;
 
   F +=  (t) * uForce;
-
+ 
+  {
+    float p = 0.2;
+    vec3 col = vec3(0.0, 0.0, 0.0);
+    float tt = t;
+    tt += float(uCounter) / 200;
   
-{
-  float p = 0.2;
-  vec3 col = vec3(0.0, 0.0, 0.0);
-  float tt = t;
-  tt += float(uCounter) / 200;
-
-  col = 0.6 * pal( 1.0 * tt, pa, pb, pc, pd );
-
-  if(uRad - dist > 0.0) C += col;
-
-  dist = distance(fsUv,  ePos - 0.1 * eDir + eDir * (float(uCounter) / 500.0f)  );
-  t = max(uRad - dist, 0.0)/uRad;
-  float theta = 0.0f + 3.14 * 2.0 * mynoise(300.0 *  uPos);
-  F +=  (t) * 70.0 * vec2(cos(theta), sin(theta));
-}
-
+    col = 0.6 * pal( 1.0 * tt, pa, pb, pc, pd );
+  
+    if(uRad - dist > 0.0) C += col;
+  
+    dist = distance(fsUv,  ePos - 0.1 * eDir + eDir * (float(uCounter) / 500.0f)  );
+    t = max(uRad - dist, 0.0)/uRad;
+    float theta = 0.0f + 3.14 * 2.0 * mynoise(300.0 *  uPos);
+    F +=  (t) * 70.0 * vec2(cos(theta), sin(theta));
+  }
 }
 
 void circleEmitter() {
-
   int N = 14;
   for(int i = 0; i < N; ++i) {
     float theta = 2.0 * 3.14 *  i / float(N);
@@ -1017,109 +1013,106 @@ void screamEmitter(vec2 ePos, vec2 eDir, float myc) {
 
   F +=  (t) * uForce;
 
-{
-  float p = 0.2;
-  float tt = t;
-  tt += float(myc) / 200;
- 
-  dist = distance(fsUv,  ePos - 0.1 * eDir + eDir * (float(myc) / 500.0f)  );
-  t = max(uRad - dist, 0.0)/uRad;
-  float theta = 0.0f + 3.14 * 2.0 * mynoise(300.0 *  uPos);
-  F +=  (t) * 1.0 * vec2(cos(theta), sin(theta));
-}
-
+  {
+    float p = 0.2;
+    float tt = t;
+    tt += float(myc) / 200;
+   
+    dist = distance(fsUv,  ePos - 0.1 * eDir + eDir * (float(myc) / 500.0f)  );
+    t = max(uRad - dist, 0.0)/uRad;
+    float theta = 0.0f + 3.14 * 2.0 * mynoise(300.0 *  uPos);
+    F +=  (t) * 1.0 * vec2(cos(theta), sin(theta));
+  }
 }
 
 void monaLisa() {
-if(uCounter > 3) {
- 
-  uRad = 0.005f;
-  uColor = vec3(1.0, 0.0, 0.0);
-  vec2 ePos = vec2(0.1, 0.5);
-  vec2 eDir = normalize(vec2(0.5, 0.5));
-  for(float x = 0.02; x < 0.98; x += 0.05) {
-    for(float y = 0.02; y < 0.98; y += 0.05) {
-      uPos = vec2(x, y);
-      float theta = 0.0f + 3.14 * 2.0 * mynoise(300.0 *  uPos + vec2(uCounter / 200.0) );
-      uForce = 1.0 * vec2(cos(theta), sin(theta));
-      float dist = distance(fsUv, uPos);
-      float t = max(uRad - dist, 0.0)/uRad;
-      F +=  (t) * uForce;
+  if(uCounter > 3) {
+   
+    uRad = 0.005f;
+    uColor = vec3(1.0, 0.0, 0.0);
+    vec2 ePos = vec2(0.1, 0.5);
+    vec2 eDir = normalize(vec2(0.5, 0.5));
+    for(float x = 0.02; x < 0.98; x += 0.05) {
+      for(float y = 0.02; y < 0.98; y += 0.05) {
+        uPos = vec2(x, y);
+        float theta = 0.0f + 3.14 * 2.0 * mynoise(300.0 *  uPos + vec2(uCounter / 200.0) );
+        uForce = 1.0 * vec2(cos(theta), sin(theta));
+        float dist = distance(fsUv, uPos);
+        float t = max(uRad - dist, 0.0)/uRad;
+        F +=  (t) * uForce;
+      }
     }
   }
 }
-}
 
 void theScream() {
-
-if(uCounter > 3) {
- screamEmitter(vec2(0.5, 0.5), normalize(vec2(0.4, 0.8)), uCounter-3);   
-}
-if(uCounter > 60) {
- screamEmitter(vec2(0.3, 0.3), normalize(vec2(-0.2, 0.4)), uCounter-60);   
-}
-if(uCounter > 90) {
- screamEmitter(vec2(+0.8, 0.2), normalize(vec2(-0.4, +0.4)), uCounter-90);   
-}
-if(uCounter > 130) {
- screamEmitter(vec2(+0.5, 0.96), normalize(vec2(0.1, -1.0)), uCounter-130);   
-}
-if(uCounter > 160) {
- screamEmitter(vec2(+0.1, 0.1), normalize(vec2(0.3, +0.08)), uCounter-160);   
-}
-
-if(uCounter > 200) {
- screamEmitter(vec2(+0.19, 0.98), normalize(vec2(0.1, -0.4)), uCounter-200);   
-}
-if(uCounter > 250) {
- screamEmitter(vec2(+0.01, 0.01), normalize(vec2(0.1, 0.1)), uCounter-250);   
-}
-if(uCounter > 300) {
- screamEmitter(vec2(+0.8, 0.1), normalize(vec2(-0.1, 0.8)), uCounter-300);   
-}
-
-if(uCounter > 320) {
- screamEmitter(vec2(+0.2, 0.9), normalize(vec2(0.0, -0.1)), uCounter-320);   
-}
-
-if(uCounter > 330) {
- screamEmitter(vec2(+0.5, 0.5), normalize(vec2(-0.6, 0.0)), uCounter-330);   
-}
-
-if(uCounter > 350) {
- screamEmitter(vec2(+0.1, 0.8), normalize(vec2(1.0, 0.0)), uCounter-350);   
-}
-if(uCounter > 360) {
- screamEmitter(vec2(+0.1, 0.1), normalize(vec2(1.0, 0.0)), uCounter-360);   
-}
-if(uCounter > 380) {
- screamEmitter(vec2(+0.9, 0.9), normalize(vec2(-1.0, 0.0)), uCounter-380);   
-}
-
-if(uCounter > 400) {
- screamEmitter(vec2(+0.5, 0.04), normalize(vec2(0.0, 0.9)), uCounter-400);   
-}
-if(uCounter > 420) {
- screamEmitter(vec2(+0.89, 0.9), normalize(vec2(0.0, -0.9)), uCounter-420);   
-}
-
-if(uCounter > 440) {
- screamEmitter(vec2(+0.11, 0.1), normalize(vec2(0.0, +0.9)), uCounter-440);   
-}
+  if(uCounter > 3) {
+   screamEmitter(vec2(0.5, 0.5), normalize(vec2(0.4, 0.8)), uCounter-3);   
+  }
+  if(uCounter > 60) {
+   screamEmitter(vec2(0.3, 0.3), normalize(vec2(-0.2, 0.4)), uCounter-60);   
+  }
+  if(uCounter > 90) {
+   screamEmitter(vec2(+0.8, 0.2), normalize(vec2(-0.4, +0.4)), uCounter-90);   
+  }
+  if(uCounter > 130) {
+   screamEmitter(vec2(+0.5, 0.96), normalize(vec2(0.1, -1.0)), uCounter-130);   
+  }
+  if(uCounter > 160) {
+   screamEmitter(vec2(+0.1, 0.1), normalize(vec2(0.3, +0.08)), uCounter-160);   
+  }
+  
+  if(uCounter > 200) {
+   screamEmitter(vec2(+0.19, 0.98), normalize(vec2(0.1, -0.4)), uCounter-200);   
+  }
+  if(uCounter > 250) {
+   screamEmitter(vec2(+0.01, 0.01), normalize(vec2(0.1, 0.1)), uCounter-250);   
+  }
+  if(uCounter > 300) {
+   screamEmitter(vec2(+0.8, 0.1), normalize(vec2(-0.1, 0.8)), uCounter-300);   
+  }
+  
+  if(uCounter > 320) {
+   screamEmitter(vec2(+0.2, 0.9), normalize(vec2(0.0, -0.1)), uCounter-320);   
+  }
+  
+  if(uCounter > 330) {
+   screamEmitter(vec2(+0.5, 0.5), normalize(vec2(-0.6, 0.0)), uCounter-330);   
+  }
+  
+  if(uCounter > 350) {
+   screamEmitter(vec2(+0.1, 0.8), normalize(vec2(1.0, 0.0)), uCounter-350);   
+  }
+  if(uCounter > 360) {
+   screamEmitter(vec2(+0.1, 0.1), normalize(vec2(1.0, 0.0)), uCounter-360);   
+  }
+  if(uCounter > 380) {
+   screamEmitter(vec2(+0.9, 0.9), normalize(vec2(-1.0, 0.0)), uCounter-380);   
+  }
+  
+  if(uCounter > 400) {
+   screamEmitter(vec2(+0.5, 0.04), normalize(vec2(0.0, 0.9)), uCounter-400);   
+  }
+  if(uCounter > 420) {
+   screamEmitter(vec2(+0.89, 0.9), normalize(vec2(0.0, -0.9)), uCounter-420);   
+  }
+  
+  if(uCounter > 440) {
+   screamEmitter(vec2(+0.11, 0.1), normalize(vec2(0.0, +0.9)), uCounter-440);   
+  }
 }
 
 void emitter() {
 
-if(uSim == 0) {
-  circleEmitter();
-  
-} else if(uSim == 2) {
-  monaLisa();
-} else if(uSim == 4) {
-  theScream();
-} else if(uSim == 5) {
-  rainbowEmit();
-}
+  if(uSim == 0) {
+    circleEmitter();  
+  } else if(uSim == 2) {
+    monaLisa();
+  } else if(uSim == 4) {
+    theScream();
+  } else if(uSim == 5) {
+    rainbowEmit();
+  }
 
 }
 
