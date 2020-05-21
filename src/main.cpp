@@ -1221,7 +1221,7 @@ void emitter() {
   
 		void main()
 		{
-          FragColor = vec4(pow(clamp(texture2D(uTex, fsUv).rgb, 0.0, 1.0) * uBlend, vec3(1.0 / 2.2)), 1.0);
+          FragColor = vec4(pow(clamp(texture(uTex, fsUv).rgb, 0.0, 1.0) * uBlend, vec3(1.0 / 2.2)), 1.0);
 
 		}
 		)")
